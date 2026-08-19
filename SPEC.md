@@ -202,6 +202,72 @@ POST /problems/{id}/submit (登录后)
 | POST | `/admin/problems` | **admin** | 创建题目（含测试用例） |
 | POST | `/admin/problems/{id}/delete` | **admin** | 删除题目（前端二次确认，物理删除+级联删用例） |
 
+### 4.6 项目目录结构（预期）
+
+```
+cpp-oj-vibe-coding/
+├── CMakeLists.txt                    # 构建脚本（cpp-httplib 头文件 + md4c 源 + 源码）
+├── README.md                         # 构建 / 初始化 / 启动 / 部署说明
+├── SPEC.md                           # 本规格文档
+├── .gitignore
+│
+├── src/
+│   ├── main.cpp                      # 入口：启动自检、路由注册、HTTP 服务
+│   ├── config.h                      # 全局配置：端口 / DB / 限流 / rlimit 参数
+│   ├── logger.h|.cpp                 # 基础日志（控制台 + 错误文件）
+│   ├── http_utils.h|.cpp             # 表单解析、HTML 转义、参数校验
+│   │
+│   ├── db/
+│   │   ├── db.h|.cpp                 # MySQL 连接管理 / 连接池
+│   │   └── db_query.h|.cpp           # 预编译语句（prepare/execute）封装
+│   │
+│   ├── auth/
+│   │   ├── password.h|.cpp           # 加盐哈希（sha256 + salt）
+│   │   ├── session.h|.cpp            # Session/Cookie 中间件
+│   │   └── middleware.h|.cpp         # require_login / require_admin
+│   │
+│   ├── models/
+│   │   ├── user.h|.cpp
+│   │   ├── problem.h|.cpp
+│   │   ├── testcase.h|.cpp
+│   │   └── submission.h|.cpp
+│   │
+│   ├── services/
+│   │   ├── user_service.h|.cpp       # 注册 / 登录 / 鉴权逻辑
+│   │   ├── problem_service.h|.cpp    # 题目 CRUD（含用例事务、级联删除）
+│   │   └── submission_service.h|.cpp # 提交落库 / 查询
+│   │
+│   ├── judge/
+│   │   ├── judge.h|.cpp              # 判题编排：信号量限流、逐用例调度、汇总落库
+│   │   ├── compiler.h|.cpp           # g++ 编译（临时目录 / 10s 兜底 / CE 日志）
+│   │   └── runner.h|.cpp             # fork + setuid(nobody) + setrlimit + 逐用例比对
+│   │
+│   ├── markdown/
+│   │   └── md.h|.cpp                 # md4c 封装（Markdown → HTML）
+│   │
+│   └── views/                        # SSR 页面渲染（后端拼 HTML 字符串）
+│       ├── render.h|.cpp             # 页面骨架 / 布局拼装
+│       ├── problem_pages.cpp         # /problems 列表 + 详情页
+│       ├── auth_pages.cpp            # /login / /register
+│       ├── admin_pages.cpp           # /admin/problems 管理页
+│       ├── result_pages.cpp          # 判题结果页（总体 + 逐用例 + 统计）
+│       └── error_pages.cpp           # 404 / 403 / 500
+│
+├── public/
+│   └── css/style.css                 # 全局样式
+│
+├── db/
+│   ├── schema.sql                    # 建表脚本（users/problems/testcases/submissions）
+│   └── init_admin.sql|.cpp           # 初始化内置 admin 账号
+│
+├── docs/
+│   └── deployment.md                 # 部署说明（nobody 用户、setuid、MySQL 初始化）
+│
+└── tests/                            # 可选：判题内核自测脚本（AC/WA/TLE/... 样例）
+```
+
+> 分层原则：`main` 只做装配与路由分发 → `services` 持有业务逻辑（含 SQL）→ `models` 仅承载数据行；`judge` 独立于 HTTP 层，便于后续异步化改造。
+
 ---
 
 ## 5. 边缘案例与异常处理
