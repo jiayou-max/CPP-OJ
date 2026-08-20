@@ -22,6 +22,8 @@
 
 > 说明: Ubuntu 22.04 官方源已提供 `libcpp-httplib-dev` (0.10.3) 与 `libmd4c-dev` (0.4.8)，无需从源码编译或从 GitHub 拉取，可直接 apt 安装，并在 CMake 中通过 `find_package` 使用。
 
+> ⚠️ cpp-httplib 特殊说明: apt 包 `libcpp-httplib-dev` 的 `httplib.h` 将实现拆分到 `libcpp-httplib.so`，**非纯 header-only**（直接包含会报未定义符号）。本项目按 SPEC "单文件集成" 要求，将上游 v0.10.3 的纯 header-only `httplib.h` vendored 到 `third_party/httplib.h`；CMake 优先使用 vendored 版本，apt 版仅作回退（此时需链接 `-lcpp-httplib`）。
+
 ---
 
 ## 2. 安装命令

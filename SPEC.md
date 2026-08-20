@@ -245,13 +245,18 @@ cpp-oj-vibe-coding/
 │   ├── markdown/
 │   │   └── md.h|.cpp                 # md4c 封装（Markdown → HTML）
 │   │
-│   └── views/                        # SSR 页面渲染（后端拼 HTML 字符串）
-│       ├── render.h|.cpp             # 页面骨架 / 布局拼装
-│       ├── problem_pages.cpp         # /problems 列表 + 详情页
-│       ├── auth_pages.cpp            # /login / /register
-│       ├── admin_pages.cpp           # /admin/problems 管理页
-│       ├── result_pages.cpp          # 判题结果页（总体 + 逐用例 + 统计）
-│       └── error_pages.cpp           # 404 / 403 / 500
+│   ├── views/                        # SSR 页面渲染（后端拼 HTML 字符串）
+│   │   ├── render.h|.cpp             # 页面骨架 / 布局拼装
+│   │   ├── problem_pages.cpp         # /problems 列表 + 详情页
+│   │   ├── auth_pages.cpp            # /login / /register
+│   │   ├── admin_pages.cpp           # /admin/problems 管理页
+│   │   ├── result_pages.cpp          # 判题结果页（总体 + 逐用例 + 统计）
+│   │   └── error_pages.cpp           # 404 / 403 / 500
+│   │
+│   └── test/                         # 单元测试（gtest）：render_test / routes_test
+│
+├── third_party/
+│   └── httplib.h                     # cpp-httplib v0.10.3 纯 header-only（vendored）
 │
 ├── public/
 │   └── css/style.css                 # 全局样式
@@ -308,8 +313,8 @@ cpp-oj-vibe-coding/
 ## 7. TODO 清单（建议实现顺序）
 
 ### 阶段 0：工程骨架
-- [ ] 初始化仓库目录结构（`src/`, `public/`, `db/`, `docs/`）
-- [ ] 集成 cpp-httplib（header-only），跑通 Hello World SSR
+- [X] 初始化仓库目录结构（`src/`, `public/`, `db/`, `docs/`）
+- [X] 集成 cpp-httplib（header-only），跑通 Hello World SSR（vendored 于 `third_party/httplib.h`）
 - [ ] 集成 md4c（Markdown → HTML）
 - [ ] CMake 构建脚本 + 依赖清单（README）
 - [ ] MySQL 连接封装（连接管理 + 预编译语句封装）
