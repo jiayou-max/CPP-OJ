@@ -54,6 +54,7 @@ endif()
 #   单元测试复用 lib 源，不含 main.cpp（避免与 gtest_main 冲突）。
 # ------------------------------------------------------------------
 set(OJ_LIB_SOURCES
+  src/logger.cpp
   src/routes.cpp
   src/views/render.cpp
   src/markdown/md.cpp
@@ -82,6 +83,7 @@ if(OJ_BUILD_TESTS)
     src/test/render_test.cpp
     src/test/routes_test.cpp
     src/test/markdown_test.cpp
+    src/test/logger_test.cpp
     ${OJ_LIB_SOURCES}
   )
 
