@@ -317,8 +317,8 @@ cpp-oj-vibe-coding/
 - [X] 集成 cpp-httplib（header-only），跑通 Hello World SSR（vendored 于 `third_party/httplib.h`）
 - [X] 集成 md4c（Markdown → HTML）
 - [X] CMake 构建脚本 + 依赖清单（README）
-- [ ] 基础日志（控制台 + 错误文件）
-- [ ] MySQL 连接封装（连接管理 + 预编译语句封装）
+- [X] 基础日志（控制台 + 错误文件）
+- [X] MySQL 连接封装（连接管理 + 预编译语句封装）
 
 ### 阶段 1：数据层
 - [ ] `schema.sql`：users / problems / testcases / submissions 建表

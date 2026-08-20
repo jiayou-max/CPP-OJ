@@ -49,6 +49,12 @@ if(NOT MD4C_HTML_LIBRARY)
 endif()
 
 # ------------------------------------------------------------------
+# mysqlclient (MySQL 连接池，SPEC A.1 libmysqlclient-dev)
+#   pkg-config 提供头文件路径与 -lmysqlclient，其私有依赖 openssl 一并带入。
+# ------------------------------------------------------------------
+pkg_check_modules(MYSQLCLIENT REQUIRED IMPORTED_TARGET mysqlclient)
+
+# ------------------------------------------------------------------
 # 源码清单 (对应 SPEC 4.6 目录结构)
 #   随阶段推进在此追加模块源文件（logger/db/auth/models/services/judge）。
 #   单元测试复用 lib 源，不含 main.cpp（避免与 gtest_main 冲突）。
@@ -58,6 +64,7 @@ set(OJ_LIB_SOURCES
   src/routes.cpp
   src/views/render.cpp
   src/markdown/md.cpp
+  src/db/db.cpp
 )
 
 set(OJ_SERVER_SOURCES
@@ -71,6 +78,7 @@ target_include_directories(oj_server PRIVATE src ${HTTPLIB_INCLUDE_DIR})
 target_link_libraries(oj_server PRIVATE
   PkgConfig::MD4C
   ${MD4C_HTML_LIBRARY}
+  PkgConfig::MYSQLCLIENT
   ${HTTPLIB_LINK_LIBS})
 
 # ---------- 单元测试 (gtest, src/test/) ----------
@@ -84,6 +92,7 @@ if(OJ_BUILD_TESTS)
     src/test/routes_test.cpp
     src/test/markdown_test.cpp
     src/test/logger_test.cpp
+    src/test/db_test.cpp
     ${OJ_LIB_SOURCES}
   )
 
@@ -93,6 +102,7 @@ if(OJ_BUILD_TESTS)
     GTest::gtest_main
     PkgConfig::MD4C
     ${MD4C_HTML_LIBRARY}
+    PkgConfig::MYSQLCLIENT
     ${HTTPLIB_LINK_LIBS})
 
   include(GoogleTest)
