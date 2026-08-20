@@ -16,11 +16,14 @@
 | `mysql-server` | 8.0.46 | 唯一外部服务: 数据持久化 | apt |
 | `libmysqlclient-dev` | 8.0.46 | C++ MySQL 客户端库 (连接/预编译语句) | apt |
 | `libcpp-httplib-dev` | 0.10.3 | cpp-httplib 单头文件 HTTP 库 | apt |
-| `libmd4c-dev` | 0.4.8 | Markdown → HTML 渲染 (md4c) | apt |
+| `libmd4c-dev` | 0.4.8 | Markdown 解析器 (md_parse) 头文件与链接参数 | apt |
+| `libmd4c-html0-dev` | 0.4.8 | Markdown HTML 渲染器 (md_html) 头文件/开发链接（依赖 `libmd4c-html0` 运行时库） | apt |
 | `libssl-dev` | 3.0.2 | OpenSSL SHA256 (密码加盐哈希) | apt |
 | `nobody` 用户 | 系统内置 | 判题内核降权运行用户 (UID 65534) | 系统自带 |
 
-> 说明: Ubuntu 22.04 官方源已提供 `libcpp-httplib-dev` (0.10.3) 与 `libmd4c-dev` (0.4.8)，无需从源码编译或从 GitHub 拉取，可直接 apt 安装，并在 CMake 中通过 `find_package` 使用。
+> 说明: Ubuntu 22.04 官方源已提供 `libcpp-httplib-dev` (0.10.3)、`libmd4c-dev` (0.4.8) 与 `libmd4c-html0-dev` (0.4.8)，无需从源码编译或从 GitHub 拉取，可直接 apt 安装。
+
+> ⚠️ md4c 特殊说明: Ubuntu/Debian 将 md4c 拆成两个库——`libmd4c`（解析器 `md_parse`）与 `libmd4c-html`（HTML 渲染器 `md_html`）。二者缺一不可，且 `libmd4c-html0` 只含运行时库，**必须额外安装 `libmd4c-html0-dev`** 才会提供 `-l` 开发符号链接（`libmd4c-html.so`）。CMake 中解析器通过 `pkg-config` 定位，渲染器通过 `find_library` 定位。
 
 > ⚠️ cpp-httplib 特殊说明: apt 包 `libcpp-httplib-dev` 的 `httplib.h` 将实现拆分到 `libcpp-httplib.so`，**非纯 header-only**（直接包含会报未定义符号）。本项目按 SPEC "单文件集成" 要求，将上游 v0.10.3 的纯 header-only `httplib.h` vendored 到 `third_party/httplib.h`；CMake 优先使用 vendored 版本，apt 版仅作回退（此时需链接 `-lcpp-httplib`）。
 
@@ -40,6 +43,7 @@ sudo apt install -y \
   libmysqlclient-dev \
   libcpp-httplib-dev \
   libmd4c-dev \
+  libmd4c-html0-dev \
   libssl-dev
 ```
 
@@ -66,8 +70,10 @@ sudo apt install -y libcpp-httplib-dev
 **④ Markdown 渲染库 (md4c)**
 
 ```bash
-sudo apt install -y libmd4c-dev
+sudo apt install -y libmd4c-dev libmd4c-html0-dev
 ```
+
+> md4c 的解析器与 HTML 渲染器是独立库：`libmd4c-dev` 提供解析器（`md_parse`）；`libmd4c-html0-dev` 提供 HTML 渲染器（`md_html`）及其 `-l` 开发符号链接（并自动依赖运行时包 `libmd4c-html0`）。只装 `libmd4c-dev` 会报 `md_html` 未定义，只装运行时包 `libmd4c-html0` 则 CMake 找不到 `-lmd4c-html`。
 
 **⑤ 密码哈希 (OpenSSL)**
 
@@ -107,13 +113,17 @@ ls /usr/include/httplib.h
 ls /usr/include/md4c.h
 ls /usr/include/mysql/mysql.h
 ls /usr/include/openssl/sha.h
+
+# md4c HTML 渲染器为独立库，须确认开发链接符号存在（由 libmd4c-html0-dev 提供）
+ls /usr/lib/x86_64-linux-gnu/libmd4c-html.so
+ldconfig -p | grep md4c        # 期望同时出现 libmd4c.so 与 libmd4c-html.so
 ```
 
 ### 3.3 链接可用性 (pkg-config)
 
 ```bash
 pkg-config --cflags --libs mysqlclient   # 期望输出 -I/usr/include/mysql -lmysqlclient
-pkg-config --cflags --libs md4c          # 期望输出 -lmd4c
+pkg-config --cflags --libs md4c          # 期望输出 -lmd4c（仅解析器，渲染器见 3.2）
 ```
 
 ### 3.4 MySQL 服务
@@ -145,5 +155,5 @@ FLUSH PRIVILEGES;
 ## 5. 备注
 
 - **无需安装**：前端为原生 HTML/CSS/JS（无 npm/构建链）；判题隔离为 fork+setuid，**无 Docker 依赖**。
-- **项目构建方式**：CMake 中通过 `find_package(OpenSSL REQUIRED)`、`find_package(PkgConfig)` + `pkg_check_modules` 链接 `mysqlclient` 与 `md4c`，`cpp-httplib` 通过 `find_path` 查找 `/usr/include/httplib.h` 后 `include_directories`。
+- **项目构建方式**：CMake 中通过 `find_package(OpenSSL REQUIRED)`、`find_package(PkgConfig)` + `pkg_check_modules` 链接 `mysqlclient` 与 md4c 解析器（`-lmd4c`），md4c HTML 渲染器（`-lmd4c-html`）通过 `find_library` 定位，`cpp-httplib` 通过 `find_path` 查找 `/usr/include/httplib.h` 后 `include_directories`。
 - **g++ 与判题**：判题阶段直接用系统 `g++` 编译用户代码，随 `build-essential` 一并安装。

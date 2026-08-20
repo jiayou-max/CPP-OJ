@@ -315,8 +315,9 @@ cpp-oj-vibe-coding/
 ### 阶段 0：工程骨架
 - [X] 初始化仓库目录结构（`src/`, `public/`, `db/`, `docs/`）
 - [X] 集成 cpp-httplib（header-only），跑通 Hello World SSR（vendored 于 `third_party/httplib.h`）
-- [ ] 集成 md4c（Markdown → HTML）
+- [X] 集成 md4c（Markdown → HTML）
 - [ ] CMake 构建脚本 + 依赖清单（README）
+- [ ] 基础日志（控制台 + 错误文件）
 - [ ] MySQL 连接封装（连接管理 + 预编译语句封装）
 
 ### 阶段 1：数据层
@@ -351,7 +352,6 @@ cpp-oj-vibe-coding/
 
 ### 阶段 6：收尾
 - [ ] 启动自检（g++、nobody、MySQL 可用性）
-- [ ] 基础日志（控制台 + 错误文件）
 - [ ] 端到端手动验收（对照第 8 节）
 - [ ] README：构建、初始化、启动、部署说明
 
