@@ -316,7 +316,7 @@ cpp-oj-vibe-coding/
 - [X] 初始化仓库目录结构（`src/`, `public/`, `db/`, `docs/`）
 - [X] 集成 cpp-httplib（header-only），跑通 Hello World SSR（vendored 于 `third_party/httplib.h`）
 - [X] 集成 md4c（Markdown → HTML）
-- [ ] CMake 构建脚本 + 依赖清单（README）
+- [X] CMake 构建脚本 + 依赖清单（README）
 - [ ] 基础日志（控制台 + 错误文件）
 - [ ] MySQL 连接封装（连接管理 + 预编译语句封装）
 
@@ -397,3 +397,82 @@ cpp-oj-vibe-coding/
 | D12 | 部署 | 本机/局域网，无 HTTPS |
 | D13 | 非功能 | 基础日志即可；Web 安全为基础档（哈希/预编译SQL/转义/校验） |
 | D14 | 页面 | 四类页面：列表、做题详情、登录注册、管理后台；纯整页刷新 + URL 路由 |
+
+---
+
+## 附录 A：依赖清单与构建运行（对应 README.md）
+
+> 依赖安装与逐项验证的详细说明见 [dependence.md](./dependence.md)。
+
+### A.1 依赖清单
+
+| 依赖 | 用途 | Ubuntu 安装包 |
+|------|------|---------------|
+| g++ (C++17) | 编译本项目 + 判题用户代码 | `build-essential` |
+| CMake ≥ 3.16 | 构建（CMakeLists.txt） | `cmake` |
+| pkg-config | 定位 md4c / mysqlclient 头文件与链接参数 | `pkg-config` |
+| MySQL 8 | 数据持久化（唯一外部服务） | `mysql-server` |
+| MySQL C++ 客户端 | 连接 / 预编译语句 | `libmysqlclient-dev` |
+| cpp-httplib 0.10.3 | HTTP 服务 | vendored `third_party/httplib.h`（apt 仅回退） |
+| md4c 0.4.8 | Markdown 解析器 (`md_parse`) | `libmd4c-dev` |
+| md4c-html 0.4.8 | Markdown HTML 渲染器 (`md_html`) | `libmd4c-html0-dev` |
+| OpenSSL | SHA256 密码加盐哈希 | `libssl-dev` |
+| `nobody` 用户 (UID 65534) | 判题内核降权运行 | 系统内置 |
+
+### A.2 安装命令
+
+```bash
+sudo apt update
+sudo apt install -y \
+  build-essential \
+  cmake \
+  pkg-config \
+  mysql-server \
+  libmysqlclient-dev \
+  libcpp-httplib-dev \
+  libmd4c-dev \
+  libmd4c-html0-dev \
+  libssl-dev
+```
+
+> 说明：按 SPEC 单文件集成要求，cpp-httplib 使用 vendored 的纯 header-only
+> `third_party/httplib.h`，CMake 优先选择；apt 版 `libcpp-httplib-dev` 非纯
+> header-only（需链接 `-lcpp-httplib`），仅作回退。md4c 的解析器与 HTML 渲染器
+> 是独立库，两者都必须安装，且 `libmd4c-html0` 运行时包不含 `-l` 符号链接，
+> 需一并安装 `libmd4c-html0-dev`。
+
+### A.3 构建
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+```
+
+产物：
+- `build/oj_server` — HTTP 服务
+- `build/oj_tests` — 单元测试（gtest，可用 `-DOJ_BUILD_TESTS=OFF` 关闭）
+
+### A.4 运行
+
+```bash
+./build/oj_server
+# 浏览器访问 http://localhost:8080/
+```
+
+### A.5 测试
+
+```bash
+ctest --test-dir build --output-on-failure
+```
+
+### A.6 项目结构
+
+```
+├── CMakeLists.txt            # 构建脚本
+├── src/                      # 源码（main / routes / views / markdown / ...）
+├── third_party/httplib.h     # cpp-httplib v0.10.3 (vendored, header-only)
+├── public/                   # 静态资源（css）
+├── db/                       # 建表脚本与初始化
+├── docs/                     # 文档
+└── tests/                    # 判题内核自测脚本（可选）
+```
