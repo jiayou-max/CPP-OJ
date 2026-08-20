@@ -158,6 +158,42 @@ submissions (
 
 > 说明: `testcases` 独立成表便于逐用例管理；提交只存最终总体状态与资源统计，逐用例详情不落库（仅当次页面展示）。
 
+### 4.3.1 数据库注意事项（阶段 1 落地要点）
+
+**连接与配置**
+- 业务库名统一为 `cpp_oj`：`src/config.h` 的 `kDbName`、`db/schema.sql`、
+  `db/init_admin.cpp` 三处必须保持一致，改动任一处需同步其余两处。
+- `oj_server` 启动自检会连接 `cpp_oj`，因此**必须先执行
+  `mysql -uroot < db/schema.sql` 再启动服务**，否则自检失败。
+- 连接参数默认：`localhost:3306 / root / 免密`。若真实环境不符（如 root 有密码、
+  端口不同、走 TCP），用环境变量 `OJ_DB_HOST / OJ_DB_PORT / OJ_DB_USER /
+  OJ_DB_PASSWORD` 覆盖（当前 `oj_init_admin` 已支持，服务端由后续阶段接入）。
+  注意：`localhost` 走 unix socket，`127.0.0.1` 走 TCP；socket 目录权限不足时
+  需改走 TCP（如 `OJ_DB_HOST=127.0.0.1`）。
+
+**建表脚本（db/schema.sql）**
+- 幂等（`CREATE ... IF NOT EXISTS`），可重复执行；全库 utf8mb4 +
+  utf8mb4_unicode_ci，与 `src/db/db.cpp` 连接时设置的字符集保持一致。
+- `testcases.order` 为 MySQL 保留字，建表/查询时必须反引号。
+- 外键删除规则（已实测）：
+  - `testcases.problem_id` → `problems` **CASCADE**：删题级联删用例（FR-4.3）。
+  - `submissions.problem_id` → `problems` **CASCADE**：保证 admin 物理删题不被
+    历史提交阻塞（FR-4.3「物理删除，无回收站」）。
+  - `submissions.user_id` → `users` **RESTRICT**：无删用户功能，保护提交记录。
+
+**密码存储（全站统一约定，阶段 2 必须复用）**
+- `salt` = 16 随机字节 → 32 位 hex（`users.salt`）；`hash` = sha256(salt + password)
+  → 64 位 hex（`users.password`），校验即重算比对。
+- 实现唯一入口为 `src/auth/password.*`，注册/登录不得另起哈希方案，否则与
+  既有 admin 密码互不兼容。
+- 内置 admin 由 `oj_init_admin` 创建/重置（`INSERT ... ON DUPLICATE KEY UPDATE`
+  幂等 upsert）；**重复执行会重置该用户名密码**（可作忘记密码的恢复手段）。
+  FR-1.3 由 `users.username` 唯一键 + 注册接口禁用 `admin` 名共同保证。
+
+**初始化顺序（验收 A1 前置步骤）**
+1. `mysql -uroot < db/schema.sql`（建库建表）
+2. `./build/oj_init_admin admin '<密码>'`（建内置管理员）
+
 ### 4.4 判题内核流程 (Judge)
 
 ```
@@ -263,7 +299,7 @@ cpp-oj-vibe-coding/
 │
 ├── db/
 │   ├── schema.sql                    # 建表脚本（users/problems/testcases/submissions）
-│   └── init_admin.sql|.cpp           # 初始化内置 admin 账号
+│   └── init_admin.cpp                # 初始化内置 admin 账号（随机盐 + sha256，CMake 目标 oj_init_admin）
 │
 ├── docs/
 │   └── deployment.md                 # 部署说明（nobody 用户、setuid、MySQL 初始化）
@@ -321,12 +357,12 @@ cpp-oj-vibe-coding/
 - [X] MySQL 连接封装（连接管理 + 预编译语句封装）
 
 ### 阶段 1：数据层
-- [ ] `schema.sql`：users / problems / testcases / submissions 建表
-- [ ] 初始化脚本：创建内置 admin 账号（生成随机盐 + 哈希）
+- [X] `schema.sql`：users / problems / testcases / submissions 建表
+- [X] 初始化脚本：创建内置 admin 账号（生成随机盐 + 哈希）
 
 ### 阶段 2：用户系统
 - [ ] 注册 / 登录 / 登出 + Session/Cookie 中间件
-- [ ] 密码加盐哈希（sha256 + salt）
+- [X] 密码加盐哈希（sha256 + salt）（`src/auth/password.*`，阶段 1 初始化 admin 时已落地）
 - [ ] 页面：/login、/register（SSR 表单 + 错误提示）
 - [ ] 访问控制辅助：`require_login` / `require_admin`
 

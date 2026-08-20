@@ -55,6 +55,13 @@ endif()
 pkg_check_modules(MYSQLCLIENT REQUIRED IMPORTED_TARGET mysqlclient)
 
 # ------------------------------------------------------------------
+# OpenSSL (SHA256 / CSPRNG 随机盐，SPEC A.1 libssl-dev)
+#   mysqlclient 虽私有链接 openssl，但本项目 src/auth/password.* 直接调用
+#   EVP_Digest / RAND_bytes，须显式 find + link OpenSSL::Crypto。
+# ------------------------------------------------------------------
+find_package(OpenSSL REQUIRED)
+
+# ------------------------------------------------------------------
 # 源码清单 (对应 SPEC 4.6 目录结构)
 #   随阶段推进在此追加模块源文件（logger/db/auth/models/services/judge）。
 #   单元测试复用 lib 源，不含 main.cpp（避免与 gtest_main 冲突）。
@@ -65,6 +72,7 @@ set(OJ_LIB_SOURCES
   src/views/render.cpp
   src/markdown/md.cpp
   src/db/db.cpp
+  src/auth/password.cpp
 )
 
 set(OJ_SERVER_SOURCES
@@ -72,14 +80,33 @@ set(OJ_SERVER_SOURCES
   ${OJ_LIB_SOURCES}
 )
 
-# ---------- 目标: oj_server（HTTP 服务） ----------
-add_executable(oj_server ${OJ_SERVER_SOURCES})
-target_include_directories(oj_server PRIVATE src ${HTTPLIB_INCLUDE_DIR})
-target_link_libraries(oj_server PRIVATE
+# 链接依赖（md4c 解析/渲染 + mysqlclient + openssl；cpp-httplib 为 header-only，
+# 无链接库，除非回退到 apt 版才需 ${HTTPLIB_LINK_LIBS}）。
+set(OJ_COMMON_LIBS
   PkgConfig::MD4C
   ${MD4C_HTML_LIBRARY}
   PkgConfig::MYSQLCLIENT
-  ${HTTPLIB_LINK_LIBS})
+  OpenSSL::Crypto
+)
+
+# ---------- 目标: oj_server（HTTP 服务） ----------
+add_executable(oj_server ${OJ_SERVER_SOURCES})
+target_include_directories(oj_server PRIVATE src ${HTTPLIB_INCLUDE_DIR})
+target_link_libraries(oj_server PRIVATE ${OJ_COMMON_LIBS} ${HTTPLIB_LINK_LIBS})
+
+# ---------- 目标: oj_init_admin（阶段 1，内置 admin 初始化工具，见 db/init_admin.cpp） ----------
+# 仅依赖 logger/db/password 三个最小源，不拖入 HTTP/渲染层。
+set(OJ_INIT_ADMIN_SOURCES
+  db/init_admin.cpp
+  src/logger.cpp
+  src/db/db.cpp
+  src/auth/password.cpp
+)
+add_executable(oj_init_admin ${OJ_INIT_ADMIN_SOURCES})
+target_include_directories(oj_init_admin PRIVATE src)
+target_link_libraries(oj_init_admin PRIVATE
+  PkgConfig::MYSQLCLIENT
+  OpenSSL::Crypto)
 
 # ---------- 单元测试 (gtest, src/test/) ----------
 option(OJ_BUILD_TESTS "构建单元测试" ON)
@@ -93,6 +120,7 @@ if(OJ_BUILD_TESTS)
     src/test/markdown_test.cpp
     src/test/logger_test.cpp
     src/test/db_test.cpp
+    src/test/password_test.cpp
     ${OJ_LIB_SOURCES}
   )
 
@@ -100,9 +128,7 @@ if(OJ_BUILD_TESTS)
   target_link_libraries(oj_tests PRIVATE
     GTest::gtest
     GTest::gtest_main
-    PkgConfig::MD4C
-    ${MD4C_HTML_LIBRARY}
-    PkgConfig::MYSQLCLIENT
+    ${OJ_COMMON_LIBS}
     ${HTTPLIB_LINK_LIBS})
 
   include(GoogleTest)

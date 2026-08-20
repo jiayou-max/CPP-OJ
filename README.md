@@ -49,7 +49,25 @@ cmake --build build
 
 产物：
 - `build/oj_server` — HTTP 服务
+- `build/oj_init_admin` — 内置管理员初始化工具（阶段 1）
 - `build/oj_tests` — 单元测试（gtest，可用 `-DOJ_BUILD_TESTS=OFF` 关闭）
+
+## 数据库初始化
+
+```bash
+# 1) 建库建表（幂等，可重复执行；业务库名 cpp_oj，见 src/config.h kDbName）
+mysql -uroot < db/schema.sql
+
+# 2) 创建/重置内置管理员（FR-1.3；密码加盐哈希落库）
+./build/oj_init_admin admin '你的密码'
+#    或 ./build/oj_init_admin '你的密码'（用户名默认 admin）
+#    或 OJ_ADMIN_USER=admin OJ_ADMIN_PASSWORD='你的密码' ./build/oj_init_admin
+```
+
+> 非默认 MySQL（非 root 免密 / 非 localhost:3306）可用环境变量覆盖：
+> `OJ_DB_HOST` / `OJ_DB_PORT` / `OJ_DB_USER` / `OJ_DB_PASSWORD`。
+> 若 `kDbName` 指向的库尚未创建，`oj_server` 启动自检会失败——先执行上面第 1 步。
+> 详见 [docs/deployment.md](./docs/deployment.md)。
 
 ## 运行
 

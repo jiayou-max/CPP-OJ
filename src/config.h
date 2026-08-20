@@ -14,7 +14,7 @@ constexpr const char* kDbHost = "localhost";     // "localhost" 走 unix socket�
 constexpr unsigned int kDbPort = 3306;
 constexpr const char* kDbUser = "root";
 constexpr const char* kDbPassword = "";          // 空 = 免密
-constexpr const char* kDbName = "";              // 空 = 不预选库（schema 建立后由业务指定）
+constexpr const char* kDbName = "cpp_oj";        // 业务库，由 db/schema.sql 创建（阶段 1）
 constexpr unsigned int kDbPoolSize = 8;          // 连接池上限（含占用中，NFR-2 低并发足够）
 constexpr unsigned int kDbAcquireTimeoutMs = 3000;  // 池满时等待空闲连接的上限
 constexpr unsigned int kDbConnectTimeoutMs = 3000;
