@@ -2,6 +2,7 @@
 #include <string>
 
 #include "config.h"
+#include "auth/session.h"
 #include "db/db.h"
 #include "httplib.h"
 #include "logger.h"
@@ -22,6 +23,14 @@ int main() {
     oj::LogInfo("main: MySQL 连接池就绪");
   } else {
     oj::LogWarn("main: MySQL 连接池初始化失败，题目页面将返回 500（请检查 MySQL 与 db/schema.sql）");
+  }
+
+  // 初始化全局会话管理器（阶段 4：Session/Cookie 中间件，FR-1.2）。
+  // 单进程内存存储，登录/登出时创建销毁；随机数不可用时记警告（后续登录将失败）。
+  if (oj::auth::SessionInit()) {
+    oj::LogInfo("main: 会话管理器就绪");
+  } else {
+    oj::LogError("main: 会话管理器初始化失败，登录功能不可用");
   }
 
   httplib::Server svr;

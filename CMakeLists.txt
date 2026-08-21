@@ -88,6 +88,7 @@ set(OJ_LIB_SOURCES
   src/services/problem_service.cpp
   src/services/submission_service.cpp
   src/auth/password.cpp
+  src/auth/session.cpp
   src/judge/compiler.cpp
   src/judge/runner.cpp
   src/judge/judge.cpp
@@ -140,6 +141,7 @@ if(OJ_BUILD_TESTS)
     src/test/logger_test.cpp
     src/test/db_test.cpp
     src/test/password_test.cpp
+    src/test/session_test.cpp
     src/test/problem_service_test.cpp
     src/test/compiler_test.cpp
     src/test/runner_test.cpp

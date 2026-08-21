@@ -36,4 +36,8 @@ constexpr long long kRunHardMemoryCapKb = 512 * 1024; // RLIMIT_AS 硬上限：�
 constexpr long long kMaxOutputBytes = 8 * 1024 * 1024; // 单用例 stdout 上限（超出按 WA 计，防输出无限膨胀拖垮比对）
 constexpr unsigned int kJudgeMaxConcurrent = 2;     // 全局同时判题数上限（信号量限流，SPEC 4.4 示例 N=2 / FR-3.5）
 
+// ---- 会话 / Cookie（阶段 4：Session/Cookie 中间件，FR-1.2 / NFR-3 / D13）----
+constexpr const char* kSessionCookieName = "oj_session";  // 登录会话 Cookie 名（全站统一）
+constexpr int kSessionLifetimeHours = 24 * 7;             // 会话有效期（滑动续期，默认 7 天）
+
 }  // namespace oj

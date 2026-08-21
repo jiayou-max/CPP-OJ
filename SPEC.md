@@ -502,7 +502,7 @@ cpp-oj-vibe-coding/
 - [X] 提交落库 + 结果页渲染（总体 + 逐用例 + 统计）
 
 ### 阶段 4：用户系统
-- [ ] 注册 / 登录 / 登出 + Session/Cookie 中间件
+- [X] Session/Cookie 中间件 + 注册 / 登录 / 登出
 - [X] 密码加盐哈希（sha256 + salt）（`src/auth/password.*`，阶段 1 初始化 admin 时已落地）
 - [ ] 页面：/login、/register（SSR 表单 + 错误提示）
 - [ ] 访问控制辅助：`require_login` / `require_admin`
