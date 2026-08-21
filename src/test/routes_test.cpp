@@ -3,9 +3,12 @@
 #include <string>
 #include <thread>
 
+#include <unistd.h>
+
 #include <gtest/gtest.h>
 
 #include "db/db.h"
+#include "db/db_query.h"
 #include "httplib.h"
 #include "routes.h"
 
@@ -19,7 +22,8 @@ class ServerFixture : public ::testing::Test {
     oj::RegisterRoutes(svr_);
 
     // 数据库可达性：DbInit 幂等；失败时 DbPool() 为 nullptr（路由返回 500 页）。
-    oj::db::DbInit();
+    // 支持 OJ_DB_* 环境变量覆盖，与 main.cpp 一致（SPEC 4.3.1）。
+    oj::db::DbInit(oj::db::DbConfigFromEnv());
     db_ok_ = oj::db::DbPool() != nullptr;
 
     const int port = svr_.bind_to_any_port("127.0.0.1");
@@ -46,6 +50,38 @@ class ServerFixture : public ::testing::Test {
     if (thread_.joinable()) {
       thread_.join();
     }
+  }
+
+  // 插入带一组 A+B 用例的题目，返回题目 id（失败返回 0）。
+  long long InsertJudgeProblem() {
+    oj::db::PreparedStatement ins(oj::db::DbPool()->Acquire(),
+        "INSERT INTO problems (title, description, difficulty) VALUES (?,?,?)");
+    if (!ins.PrepareOk()) return 0;
+    ins.Bind(std::string("zz_judge_route_test"));
+    ins.Bind(std::string("A+B"));
+    ins.Bind(std::string("easy"));
+    if (!ins.Execute()) return 0;
+    const long long pid = static_cast<long long>(ins.InsertId());
+    if (pid <= 0) return 0;
+
+    oj::db::PreparedStatement tc(oj::db::DbPool()->Acquire(),
+        "INSERT INTO testcases (problem_id, `order`, input, expected) VALUES (?,?,?,?)");
+    if (!tc.PrepareOk()) { DeleteProblem(pid); return 0; }
+    tc.Bind(pid);
+    tc.Bind(1);
+    tc.Bind(std::string("1 2\n"));
+    tc.Bind(std::string("3\n"));
+    if (!tc.Execute()) { DeleteProblem(pid); return 0; }
+    return pid;
+  }
+
+  void DeleteProblem(long long pid) {
+    if (pid <= 0) return;
+    oj::db::PreparedStatement del(oj::db::DbPool()->Acquire(),
+        "DELETE FROM problems WHERE id=?");
+    if (!del.PrepareOk()) return;
+    del.Bind(pid);
+    del.Execute();
   }
 
   httplib::Server svr_;
@@ -100,13 +136,50 @@ TEST_F(ServerFixture, MissingProblemReturns404Or500) {
   }
 }
 
-// 提交（未登录）：重定向登录页（FR-1.5）。阶段 2 提交表单已存在但判题未接入。
-TEST_F(ServerFixture, SubmitRedirectsToLogin) {
-  auto res = client_->Post("/problems/1/submit");
-  ASSERT_TRUE(res) << "POST /problems/1/submit 失败";
-  EXPECT_EQ(302, res->status);
-  const std::string location = res->get_header_value("Location");
-  EXPECT_EQ(0u, location.find("/login"));
+// 提交（阶段 3 判题内核）：匿名提交执行判题并渲染结果页，不再重定向登录。
+// 数据库可用 → 判题流程；不可用 → 500 错误页（A14）。
+TEST_F(ServerFixture, SubmitRunsJudgeOr500) {
+  if (!db_ok_) {
+    GTEST_SKIP() << "本机 MySQL 不可达，跳过判题提交路由测试";
+  }
+
+  const long long pid = InsertJudgeProblem();
+  ASSERT_GT(pid, 0) << "插入题目/用例失败（请先执行 mysql -uroot < db/schema.sql）";
+
+  // AC：正确代码 → 200 结果页，总体通过。
+  const std::string ac_code =
+      "#include <iostream>\n"
+      "int main(){long long a,b;while(std::cin>>a>>b)std::cout<<(a+b);return 0;}";
+  const std::string ac_path = "/problems/" + std::to_string(pid) + "/submit";
+  auto ac = client_->Post(ac_path.c_str(), httplib::Params{{"code", ac_code}});
+  ASSERT_TRUE(ac) << "POST submit(AC) 失败";
+  EXPECT_EQ(200, ac->status);
+  EXPECT_NE(std::string::npos, ac->body.find("判题结果"));
+  EXPECT_NE(std::string::npos, ac->body.find("通过 (AC)"));
+  EXPECT_NE(std::string::npos, ac->body.find("逐用例结果"));
+
+  // CE：语法错误代码 → 200 结果页，展示编译错误 + g++ 日志。
+  const std::string ce_code = "int main(){int x=;return 0;}";
+  auto ce = client_->Post(ac_path.c_str(), httplib::Params{{"code", ce_code}});
+  ASSERT_TRUE(ce) << "POST submit(CE) 失败";
+  EXPECT_EQ(200, ce->status);
+  EXPECT_NE(std::string::npos, ce->body.find("编译错误 (CE)"));
+  EXPECT_NE(std::string::npos, ce->body.find("error:"));
+
+  DeleteProblem(pid);
+}
+
+// 提交到不存在的题目：数据库可用 → 404「题目不存在」；不可用 → 500。
+TEST_F(ServerFixture, SubmitMissingProblemReturns404Or500) {
+  auto res = client_->Post("/problems/99999999/submit",
+                           httplib::Params{{"code", "int main(){}"}});
+  ASSERT_TRUE(res) << "POST submit 失败";
+  if (db_ok_) {
+    EXPECT_EQ(404, res->status);
+    EXPECT_NE(std::string::npos, res->body.find("题目不存在"));
+  } else {
+    EXPECT_EQ(500, res->status);
+  }
 }
 
 // 未注册的路径应返回 404 错误页（HTML），防止幽灵路由被意外吞掉。

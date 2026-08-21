@@ -11,6 +11,11 @@ endif()
 
 add_compile_options(-Wall -Wextra)
 
+# httplib v0.10.3 对 application/x-www-form-urlencoded 请求体限制为
+# CPPHTTPLIB_REQUEST_URI_MAX_LENGTH（默认 8192 字节），判题提交的代码可能超过该值。
+# 提升到 8MB，避免较长代码被 413 拒收（同时放宽请求行长度限制，无实际影响）。
+add_compile_definitions(CPPHTTPLIB_REQUEST_URI_MAX_LENGTH=8388608)
+
 # ------------------------------------------------------------------
 # cpp-httplib (header-only)
 #   SPEC 4.6 / D4 硬性要求单文件集成：优先使用 vendored 的
@@ -74,13 +79,18 @@ set(OJ_LIB_SOURCES
   src/views/template.cpp
   src/views/problem_pages.cpp
   src/views/error_pages.cpp
+  src/views/result_pages.cpp
   src/markdown/md.cpp
   src/db/db.cpp
   src/db/db_query.cpp
   src/models/problem.cpp
+  src/models/submission.cpp
   src/services/problem_service.cpp
+  src/services/submission_service.cpp
   src/auth/password.cpp
   src/judge/compiler.cpp
+  src/judge/runner.cpp
+  src/judge/judge.cpp
 )
 
 set(OJ_SERVER_SOURCES
@@ -132,6 +142,8 @@ if(OJ_BUILD_TESTS)
     src/test/password_test.cpp
     src/test/problem_service_test.cpp
     src/test/compiler_test.cpp
+    src/test/runner_test.cpp
+    src/test/judge_test.cpp
     ${OJ_LIB_SOURCES}
   )
 

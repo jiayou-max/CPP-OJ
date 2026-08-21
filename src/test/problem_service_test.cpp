@@ -15,7 +15,8 @@ namespace {
 class ProblemServiceTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    oj::db::DbConfig cfg;
+    // 与 main.cpp 一致：支持 OJ_DB_* 环境变量覆盖（SPEC 4.3.1 连接参数覆盖）。
+    const oj::db::DbConfig cfg = oj::db::DbConfigFromEnv();
     if (!oj::db::DbInit(cfg)) {
       GTEST_SKIP() << "本机 MySQL 不可达，跳过题目服务测试";
     }

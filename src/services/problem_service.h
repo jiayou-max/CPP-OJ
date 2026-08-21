@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "models/problem.h"
+#include "models/testcase.h"
 
 namespace oj::services {
 
@@ -18,5 +19,9 @@ ProblemQueryStatus GetProblemById(long long id, oj::models::Problem& out);
 
 // 获取全部题目（按 id 升序）。返回 false = 数据库不可用（已打错误日志）。
 bool ListProblems(std::vector<oj::models::Problem>& out);
+
+// 获取题目全部测试用例（按 `order` 升序，FR-3.2 逐组比对）。返回 false = 数据库不可用。
+bool ListTestcasesByProblem(long long problem_id,
+                            std::vector<oj::models::TestCase>& out);
 
 }  // namespace oj::services

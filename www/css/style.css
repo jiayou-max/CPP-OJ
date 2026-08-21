@@ -292,6 +292,99 @@ a {
   background: var(--color-primary-hover);
 }
 
+/* ---------- 判题结果页 ---------- */
+
+.result-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 14px 20px;
+  margin-bottom: 16px;
+}
+
+.result-status {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.result-stats {
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+
+.result-ac { background: var(--color-easy-bg); border-color: #7ee2a0; }
+.result-ac .result-status { color: var(--color-easy); }
+.result-wa { background: var(--color-hard-bg); border-color: #ffa7a0; }
+.result-wa .result-status { color: var(--color-hard); }
+.result-tle,
+.result-mle,
+.result-re { background: #fff1e5; border-color: #ffc48a; }
+.result-tle .result-status,
+.result-mle .result-status,
+.result-re .result-status { color: #bc4c00; }
+.result-ce { background: var(--color-bg-subtle); }
+.result-ce .result-status { color: var(--color-text-muted); }
+
+.compile-log {
+  background: var(--color-brand);
+  color: #e6edf3;
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.5;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.case-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  margin-bottom: 24px;
+}
+
+.case-table th,
+.case-table td {
+  text-align: left;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 14px;
+}
+
+.case-table th {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  background: var(--color-bg-subtle);
+}
+
+.case-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.case-status {
+  font-weight: 600;
+}
+
+.case-ac { color: var(--color-easy); }
+.case-wa { color: var(--color-hard); }
+.case-tle,
+.case-mle,
+.case-re { color: #bc4c00; }
+
+.result-actions {
+  margin-top: 8px;
+}
+
+.result-actions .btn {
+  margin-right: 8px;
+}
+
 /* ---------- 错误页 ---------- */
 
 .error-page {

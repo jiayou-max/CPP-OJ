@@ -1,6 +1,7 @@
 #include "db/db.h"
 
 #include <chrono>
+#include <cstdlib>
 #include <memory>
 #include <mutex>
 
@@ -163,6 +164,16 @@ std::mutex g_pool_mutex;
 ConnectionPool* g_pool = nullptr;
 
 }  // namespace
+
+DbConfig DbConfigFromEnv() {
+  DbConfig cfg;
+  if (const char* v = std::getenv("OJ_DB_HOST")) cfg.host = v;
+  if (const char* v = std::getenv("OJ_DB_PORT"))
+    cfg.port = static_cast<unsigned int>(std::atoi(v));
+  if (const char* v = std::getenv("OJ_DB_USER")) cfg.user = v;
+  if (const char* v = std::getenv("OJ_DB_PASSWORD")) cfg.password = v;
+  return cfg;
+}
 
 bool DbInit(const DbConfig& config) {
   std::lock_guard<std::mutex> lock(g_pool_mutex);

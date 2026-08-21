@@ -27,4 +27,13 @@ constexpr const char* kCompilerFlags = "-O2";       // g++ 编译选项（SPEC 4
 constexpr const char* kJudgeTempDirTemplate = "/tmp/oj_judge_XXXXXX";  // 随机临时目录模板（mkdtemp）
 constexpr unsigned int kCompileTimeoutSec = 10;     // 编译超时兜底（SPEC 5 / D8：>10s → CE 标注编译超时）
 
+// ---- 判题运行（阶段 3：runner 运行封装，对应 SPEC 4.4 / FR-3.6 / D8）----
+constexpr const char* kJudgeRunUser = "nobody";     // 降权运行用户（NFR-4，UID 65534；getpwnam 解析，缺省回退 65534）
+constexpr long long kRunTimeLimitMs = 2000;         // 单用例 wall time 上限（FR-3.6 / D8：>2s → TLE）
+constexpr long long kMemoryLimitKb = 256 * 1024;    // 单用例内存上限（FR-3.6 / D8：RLIMIT_AS 语义 → MLE）
+constexpr long long kMemoryWatchIntervalMs = 5;     // 父进程内存监控轮询间隔（/proc/<pid>/status VmSize）
+constexpr long long kRunHardMemoryCapKb = 512 * 1024; // RLIMIT_AS 硬上限：预留余量保护宿主机，防单次超大分配触发 OOM
+constexpr long long kMaxOutputBytes = 8 * 1024 * 1024; // 单用例 stdout 上限（超出按 WA 计，防输出无限膨胀拖垮比对）
+constexpr unsigned int kJudgeMaxConcurrent = 2;     // 全局同时判题数上限（信号量限流，SPEC 4.4 示例 N=2 / FR-3.5）
+
 }  // namespace oj

@@ -14,7 +14,8 @@ namespace {
 class DbPoolTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    cfg_ = oj::db::DbConfig();
+    // 与 main.cpp 一致：支持 OJ_DB_* 环境变量覆盖（SPEC 4.3.1 连接参数覆盖）。
+    cfg_ = oj::db::DbConfigFromEnv();
     oj::db::ConnectionPool probe(cfg_);
     {
       auto c = probe.Acquire();

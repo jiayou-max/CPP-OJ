@@ -1,7 +1,7 @@
 # 部署说明（Deployment）
 
 > 对应 SPEC NFR-5/NFR-6/NFR-7、附录 A 与阶段 1「数据层」。当前内容覆盖 MySQL
-> 初始化与内置管理员创建；判题降权（nobody / setuid）等后续阶段补充。
+> 初始化、内置管理员创建与阶段 3 判题降权（nobody / setuid，见 4.1）。
 
 ## 1. 前置条件
 
@@ -73,9 +73,25 @@ OJ_DB_HOST=127.0.0.1 OJ_DB_USER=root OJ_DB_PASSWORD='xxx' ./build/oj_init_admin 
 启动自检项（对应阶段 6）：g++、`nobody` 用户、MySQL 连通性。任一失败会在
 控制台给出明确错误并退出。
 
+## 4.1 判题降权（阶段 3：nobody / setuid）
+
+判题内核（`src/judge/runner.*`）运行用户代码时会把子进程降权到 `nobody`
+（UID 65534），需要 **root 启动服务**（或配置 setuid/cap_setuid）：
+
+```bash
+sudo OJ_DB_HOST=127.0.0.1 OJ_DB_PORT=3307 ./build/oj_server
+```
+
+- 以 root 启动时，`fork` 后子进程 `setgid/setuid(nobody)` 成功，用户代码以
+  低权限隔离运行（NFR-4）。`nobody` 缺失时仅告警、不阻断判题。
+- 非 root 启动时降权为 best-effort：`setuid` 失败仅打告警日志，子进程以当前
+  用户运行（本机开发/测试可用，生产部署请以 root 运行）。
+- 即便非 root，资源限制（RLIMIT_AS / RLIMIT_CPU / RLIMIT_FSIZE）、wall 2s 超时
+  kill、内存监控（/proc VmSize 轮询 → MLE）与进程组隔离仍全部生效。
+
 ## 5. 安全提示（NFR-3 / NFR-5）
 
 - 本部署面向本机 / 局域网信任环境，无 HTTPS。公网部署前需补 HTTPS 与更严格的
   账号策略。
-- 判题进程以低权限用户运行（阶段 4 实现）：需要 root 启动或配置 setuid 才能
-  fork 后降权到 `nobody`（UID 65534），届时在此补充说明。
+- 判题进程以低权限用户运行（阶段 3 已实现，见 4.1）：需要 root 启动或配置 setuid
+  才能 fork 后降权到 `nobody`（UID 65534）。

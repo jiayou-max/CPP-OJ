@@ -11,14 +11,9 @@ int main() {
   oj::LogInit();
 
   // 连接参数取自 config.h（localhost:3306 / root / 免密），可用环境变量覆盖
-  // （docs/deployment.md「连接参数覆盖」）：OJ_DB_HOST / OJ_DB_PORT / OJ_DB_USER /
-  // OJ_DB_PASSWORD。
-  oj::db::DbConfig db_cfg;
-  if (const char* v = std::getenv("OJ_DB_HOST")) db_cfg.host = v;
-  if (const char* v = std::getenv("OJ_DB_PORT"))
-    db_cfg.port = static_cast<unsigned int>(std::atoi(v));
-  if (const char* v = std::getenv("OJ_DB_USER")) db_cfg.user = v;
-  if (const char* v = std::getenv("OJ_DB_PASSWORD")) db_cfg.password = v;
+  // （SPEC 4.3.1 / docs/deployment.md「连接参数覆盖」）：OJ_DB_HOST / OJ_DB_PORT /
+  // OJ_DB_USER / OJ_DB_PASSWORD。测试与初始化工具复用 db::DbConfigFromEnv。
+  const oj::db::DbConfig db_cfg = oj::db::DbConfigFromEnv();
 
   // 初始化 MySQL 连接池（阶段 2 题目浏览依赖）。失败不阻塞启动：
   // 路由层在无连接池时返回 500 错误页（SPEC A14「MySQL 不可用 → 500 页」），

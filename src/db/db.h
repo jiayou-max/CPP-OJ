@@ -92,6 +92,11 @@ class ConnectionPool {
 // 对应 SPEC NFR-6 / A14「MySQL 不可用 → 报错」）。
 bool DbInit(const DbConfig& config = DbConfig());
 
+// 按环境变量 OJ_DB_HOST / OJ_DB_PORT / OJ_DB_USER / OJ_DB_PASSWORD 覆盖 DbConfig
+// （SPEC 4.3.1「连接参数覆盖」，与 main.cpp 保持一致；测试与服务共用同一入口，
+// 保证测试能连上真实实例而非默认 localhost:3306）。
+DbConfig DbConfigFromEnv();
+
 // 返回已初始化的全局连接池；未初始化或初始化失败返回 nullptr。
 ConnectionPool* DbPool();
 

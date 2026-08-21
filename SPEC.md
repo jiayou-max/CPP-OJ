@@ -495,11 +495,11 @@ cpp-oj-vibe-coding/
 
 ### 阶段 3：判题内核
 - [X] 编译器封装：临时目录 + g++ 编译 + 编译超时兜底 + CE 日志捕获
-- [ ] 运行封装：fork + setuid(nobody) + setrlimit(2s/256MB) + 逐用例比对
-- [ ] 结果判定与状态机（AC/WA/TLE/MLE/RE/CE）
-- [ ] getrusage 资源统计（time/内存峰值）
-- [ ] 信号量限流（全局并发判题数）
-- [ ] 提交落库 + 结果页渲染（总体 + 逐用例 + 统计）
+- [X] 运行封装：fork + setuid(nobody) + setrlimit(2s/256MB) + 逐用例比对
+- [X] 结果判定与状态机（AC/WA/TLE/MLE/RE/CE）
+- [X] getrusage 资源统计（time/内存峰值）
+- [X] 信号量限流（全局并发判题数）
+- [X] 提交落库 + 结果页渲染（总体 + 逐用例 + 统计）
 
 ### 阶段 4：用户系统
 - [ ] 注册 / 登录 / 登出 + Session/Cookie 中间件
