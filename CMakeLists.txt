@@ -80,6 +80,7 @@ set(OJ_LIB_SOURCES
   src/models/problem.cpp
   src/services/problem_service.cpp
   src/auth/password.cpp
+  src/judge/compiler.cpp
 )
 
 set(OJ_SERVER_SOURCES
@@ -130,6 +131,7 @@ if(OJ_BUILD_TESTS)
     src/test/db_test.cpp
     src/test/password_test.cpp
     src/test/problem_service_test.cpp
+    src/test/compiler_test.cpp
     ${OJ_LIB_SOURCES}
   )
 

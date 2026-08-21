@@ -494,7 +494,7 @@ cpp-oj-vibe-coding/
 - [X] 基础全局样式（CSS）
 
 ### 阶段 3：判题内核
-- [ ] 编译器封装：临时目录 + g++ 编译 + 编译超时兜底 + CE 日志捕获
+- [X] 编译器封装：临时目录 + g++ 编译 + 编译超时兜底 + CE 日志捕获
 - [ ] 运行封装：fork + setuid(nobody) + setrlimit(2s/256MB) + 逐用例比对
 - [ ] 结果判定与状态机（AC/WA/TLE/MLE/RE/CE）
 - [ ] getrusage 资源统计（time/内存峰值）

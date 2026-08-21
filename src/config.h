@@ -21,4 +21,10 @@ constexpr unsigned int kDbConnectTimeoutMs = 3000;
 constexpr unsigned int kDbReadTimeoutMs = 5000;
 constexpr unsigned int kDbWriteTimeoutMs = 5000;
 
+// ---- 判题内核（阶段 3：编译器封装，对应 SPEC 4.4 / D8）----
+constexpr const char* kCompilerBinary = "g++";      // 编译器可执行名（execlp 按 PATH 查找）
+constexpr const char* kCompilerFlags = "-O2";       // g++ 编译选项（SPEC 4.4: g++ -O2 -o main）
+constexpr const char* kJudgeTempDirTemplate = "/tmp/oj_judge_XXXXXX";  // 随机临时目录模板（mkdtemp）
+constexpr unsigned int kCompileTimeoutSec = 10;     // 编译超时兜底（SPEC 5 / D8：>10s → CE 标注编译超时）
+
 }  // namespace oj
