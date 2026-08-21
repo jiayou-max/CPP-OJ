@@ -1,8 +1,11 @@
 # 仿 LeetCode OJ 项目规格说明 (SPEC)
 
-> 版本: v1.1 · 状态: 已确认 · 访谈结论汇总于 `## 9. 决策记录`
+> 版本: v1.2 · 状态: 已确认 · 访谈结论汇总于 `## 9. 决策记录`
 >
-> 变更记录: v1.1 新增「LSP 编程辅助」（FR-2.4~2.7 / 4.7 / 阶段 4.5 / A16~A18 / D15），语言服务器定为 clangd。
+> 变更记录:
+> - v1.2 前端统一迁移至 `www/`（D16）：SSR 页面改为「`www/` 模板 + 后端占位符替换」（新增 `src/views/template.*`），
+>   HTML 不再硬编码于 C++ 字符串；原 `public/` 并入 `www/`，静态挂载 `/static → www/`；README 与 4.6/A.6 目录结构同步更新。
+> - v1.1 新增「LSP 编程辅助」（FR-2.4~2.7 / 4.7 / 阶段 4.5 / A16~A18 / D15），语言服务器定为 clangd。
 
 ---
 
@@ -194,6 +197,18 @@ submissions (
   OJ_DB_PASSWORD` 覆盖（当前 `oj_init_admin` 已支持，服务端由后续阶段接入）。
   注意：`localhost` 走 unix socket，`127.0.0.1` 走 TCP；socket 目录权限不足时
   需改走 TCP（如 `OJ_DB_HOST=127.0.0.1`）。
+- **多实例风险（已实测）**：同一机器上可能存在多个 MySQL 实例，端口各不相同
+  （如系统自带的 3306 与临时开发实例 3307）。项目默认 `localhost:3306`，但该
+  端口的实例未必允许 `root` 免密登录（即使其初始化日志出现过
+  `root@localhost is created with an empty password`，授权表也可能已被修改，
+  出现 `ERROR 1045 (28000): Access denied`）。因此**连接被拒时先排查端口**：
+  ```bash
+  ss -ltnp | grep -E ':3306|:3307'      # 看哪些端口有 mysqld 在监听
+  mysql -h127.0.0.1 -P<port> -uroot -e "SHOW DATABASES;"
+  ```
+  确认可用的实例后用 `OJ_DB_HOST=127.0.0.1 OJ_DB_PORT=<port>` 指向它；本项目
+  建表/初始化/启动都应以**同一个可用实例**为准，避免「schema 建在 A 实例、
+  服务却连 B 实例」导致查不到表。
 
 **建表脚本（db/schema.sql）**
 - 幂等（`CREATE ... IF NOT EXISTS`），可重复执行；全库 utf8mb4 +
@@ -215,8 +230,13 @@ submissions (
   FR-1.3 由 `users.username` 唯一键 + 注册接口禁用 `admin` 名共同保证。
 
 **初始化顺序（验收 A1 前置步骤）**
-1. `mysql -uroot < db/schema.sql`（建库建表）
-2. `./build/oj_init_admin admin '<密码>'`（建内置管理员）
+1. 确认可用的 MySQL 实例（见上文「多实例风险」），确定其端口与 root 凭据；
+   如非默认 `localhost:3306 / root / 免密`，以下命令都需带上
+   `OJ_DB_HOST / OJ_DB_PORT`（及必要的 `OJ_DB_USER / OJ_DB_PASSWORD`）环境变量。
+2. `mysql -h127.0.0.1 -P<port> -uroot < db/schema.sql`（建库建表，幂等可重复执行）
+3. `OJ_DB_HOST=127.0.0.1 OJ_DB_PORT=<port> ./build/oj_init_admin admin '<密码>'`
+   （建内置管理员；重复执行会重置该用户名密码）
+4. 校验：`mysql -h127.0.0.1 -P<port> -uroot cpp_oj -e "SHOW TABLES; SELECT id,username,role FROM users;"`
 
 ### 4.4 判题内核流程 (Judge)
 
@@ -318,8 +338,9 @@ cpp-oj-vibe-coding/
 │   ├── markdown/
 │   │   └── md.h|.cpp                 # md4c 封装（Markdown → HTML）
 │   │
-│   ├── views/                        # SSR 页面渲染（后端拼 HTML 字符串）
-│   │   ├── render.h|.cpp             # 页面骨架 / 布局拼装
+│   ├── views/                        # SSR 页面渲染（读 www/ 模板 + 填充数据）
+│   │   ├── render.h|.cpp             # 页面骨架：读 layout.html，填 {{title}}/{{body}}
+│   │   ├── template.h|.cpp           # www/ 模板加载 + {{key}} 占位符替换
 │   │   ├── problem_pages.cpp         # /problems 列表 + 详情页
 │   │   ├── auth_pages.cpp            # /login / /register
 │   │   ├── admin_pages.cpp           # /admin/problems 管理页
@@ -331,9 +352,14 @@ cpp-oj-vibe-coding/
 ├── third_party/
 │   └── httplib.h                     # cpp-httplib v0.10.3 纯 header-only（vendored）
 │
-├── public/
-│   ├── css/style.css                 # 全局样式
-│   └── js/lsp_editor.js              # textarea LSP 覆盖层（补全弹窗 / 诊断波浪线 / hover 提示）
+├── www/
+│   ├── layout.html           # SSR 页面骨架模板（导航 + 页脚，{{title}}/{{body}} 插槽）
+│   ├── problems.html         # 题库列表页模板（{{rows}} 插槽）
+│   ├── problems_empty.html   # 题库为空时的占位模板
+│   ├── problem_detail.html   # 题目详情 + 编辑器页模板
+│   ├── error.html            # 404 / 403 / 500 错误页模板
+│   ├── css/style.css         # 全局样式
+│   └── js/lsp_editor.js      # textarea LSP 覆盖层（补全弹窗 / 诊断波浪线 / hover 提示）
 │
 ├── db/
 │   ├── schema.sql                    # 建表脚本（users/problems/testcases/submissions）
@@ -450,7 +476,7 @@ cpp-oj-vibe-coding/
 ## 7. TODO 清单（建议实现顺序）
 
 ### 阶段 0：工程骨架
-- [X] 初始化仓库目录结构（`src/`, `public/`, `db/`, `docs/`）
+- [X] 初始化仓库目录结构（`src/`, `www/`, `db/`, `docs/`）
 - [X] 集成 cpp-httplib（header-only），跑通 Hello World SSR（vendored 于 `third_party/httplib.h`）
 - [X] 集成 md4c（Markdown → HTML）
 - [X] CMake 构建脚本 + 依赖清单（README）
@@ -462,10 +488,10 @@ cpp-oj-vibe-coding/
 - [X] 初始化脚本：创建内置 admin 账号（生成随机盐 + 哈希）
 
 ### 阶段 2：题目浏览
-- [ ] 页面：/problems 列表（标题 + 难度）
-- [ ] 页面：/problems/{id} 详情（Markdown 渲染 + textarea + 提交表单）
-- [ ] 404 / 403 / 500 错误页
-- [ ] 基础全局样式（CSS）
+- [X] 页面：/problems 列表（标题 + 难度）
+- [X] 页面：/problems/{id} 详情（Markdown 渲染 + textarea + 提交表单）
+- [X] 404 / 403 / 500 错误页
+- [X] 基础全局样式（CSS）
 
 ### 阶段 3：判题内核
 - [ ] 编译器封装：临时目录 + g++ 编译 + 编译超时兜底 + CE 日志捕获
@@ -485,7 +511,7 @@ cpp-oj-vibe-coding/
 - [ ] clangd 子进程管理 + JSON-RPC over stdio 帧编解码（`src/lsp/lsp_client.*`）
 - [ ] 会话生命周期：initialize / didOpen / didChange / completion / hover / didClose（`src/lsp/lsp_session.*`）
 - [ ] `/lsp/*` HTTP 端点 + SSE 诊断推送（`src/lsp/lsp_routes.cpp`）
-- [ ] 前端覆盖层：textarea 补全弹窗 / 诊断波浪线 / hover 提示（`public/js/lsp_editor.js`）
+- [ ] 前端覆盖层：textarea 补全弹窗 / 诊断波浪线 / hover 提示（`www/js/lsp_editor.js`）
 - [ ] 会话限流 + 空闲回收（30min）+ 启动自检检测 clangd（缺失时编辑器退化）
 - [ ] 单元测试：`lsp_client` 帧编解码 / 会话状态机（`src/test/lsp_test.cpp`）
 
@@ -546,6 +572,7 @@ cpp-oj-vibe-coding/
 | D13 | 非功能 | 基础日志即可；Web 安全为基础档（哈希/预编译SQL/转义/校验） |
 | D14 | 页面 | 四类页面：列表、做题详情、登录注册、管理后台；纯整页刷新 + URL 路由 |
 | D15 | LSP | 做题页接入 LSP（clangd）做编程辅助；保留 textarea + 覆盖层；传输用 POST+SSE（httplib v0.10.3 无 WebSocket）；LSP 仅分析不判题（FR-2.6）；每登录用户一会话 + 限流 + 空闲回收 |
+| D16 | 前端目录 | 前端页面统一放 `www/`：HTML 页面抽为 SSR 模板文件（`{{key}}` 占位符），后端 `views/` 读模板填充数据；静态资源（css/js）随模板一并入 `www/`，移除 `public/`。新增页面只需加模板文件，不改 C++ 字符串 |
 
 ---
 
@@ -623,7 +650,7 @@ ctest --test-dir build --output-on-failure
 ├── CMakeLists.txt            # 构建脚本
 ├── src/                      # 源码（main / routes / views / markdown / ...）
 ├── third_party/httplib.h     # cpp-httplib v0.10.3 (vendored, header-only)
-├── public/                   # 静态资源（css）
+├── www/                      # 前端模板 + 静态资源（SSR 模板、css）
 ├── db/                       # 建表脚本与初始化
 ├── docs/                     # 文档
 └── tests/                    # 判题内核自测脚本（可选）

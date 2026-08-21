@@ -1,0 +1,315 @@
+/* =====================================================================
+ * cpp-oj 全局基础样式（阶段 2，SPEC「基础全局样式（CSS）」）
+ * 覆盖：布局/导航/表格/徽章/编辑器/表单/错误页。
+ * ===================================================================== */
+
+:root {
+  --color-bg: #ffffff;
+  --color-bg-subtle: #f7f8fa;
+  --color-border: #d0d7de;
+  --color-text: #24292f;
+  --color-text-muted: #57606a;
+  --color-brand: #24292f;
+  --color-link: #0969da;
+  --color-easy: #1a7f37;
+  --color-easy-bg: #dafbe1;
+  --color-medium: #9a6700;
+  --color-medium-bg: #fff8c5;
+  --color-hard: #cf222e;
+  --color-hard-bg: #ffebe9;
+  --color-primary: #2f81f7;
+  --color-primary-hover: #1f6feb;
+  --radius: 6px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.6;
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+}
+
+.container {
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+/* ---------- 顶部导航 ---------- */
+
+.navbar {
+  background: var(--color-brand);
+  color: #fff;
+}
+
+.navbar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 52px;
+}
+
+.navbar-brand {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+  text-decoration: none;
+  letter-spacing: 0.5px;
+}
+
+.navbar-links a {
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: none;
+  margin-left: 20px;
+  font-size: 14px;
+}
+
+.navbar-links a:hover {
+  color: #fff;
+}
+
+/* ---------- 主体与页脚 ---------- */
+
+main.container {
+  flex: 1;
+  padding-top: 24px;
+  padding-bottom: 40px;
+}
+
+.footer {
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 13px;
+  padding: 16px 0;
+}
+
+/* ---------- 通用元素 ---------- */
+
+h1 {
+  font-size: 24px;
+  margin: 0 0 16px;
+}
+
+h2 {
+  font-size: 18px;
+  margin: 0 0 12px;
+}
+
+a {
+  color: var(--color-link);
+}
+
+/* ---------- 题库列表 ---------- */
+
+.problem-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.problem-table th,
+.problem-table td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.problem-table th {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  background: var(--color-bg-subtle);
+}
+
+.problem-table tbody tr:hover {
+  background: var(--color-bg-subtle);
+}
+
+.problem-table tr:last-child td {
+  border-bottom: none;
+}
+
+.col-id {
+  width: 64px;
+  color: var(--color-text-muted);
+}
+
+.problem-title {
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.problem-title:hover {
+  text-decoration: underline;
+}
+
+.col-diff {
+  width: 96px;
+}
+
+.empty-hint {
+  color: var(--color-text-muted);
+}
+
+/* ---------- 难度徽章 ---------- */
+
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.badge-easy {
+  color: var(--color-easy);
+  background: var(--color-easy-bg);
+}
+
+.badge-medium {
+  color: var(--color-medium);
+  background: var(--color-medium-bg);
+}
+
+.badge-hard {
+  color: var(--color-hard);
+  background: var(--color-hard-bg);
+}
+
+/* ---------- 题目详情 ---------- */
+
+.problem-detail {
+  margin-bottom: 24px;
+}
+
+.problem-detail h1 .badge {
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.markdown-body {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  background: var(--color-bg-subtle);
+}
+
+.markdown-body pre {
+  background: var(--color-brand);
+  color: #e6edf3;
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  overflow-x: auto;
+}
+
+.markdown-body code {
+  background: rgba(175, 184, 193, 0.2);
+  border-radius: 4px;
+  padding: 2px 4px;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
+}
+
+.markdown-body pre code {
+  background: none;
+  padding: 0;
+}
+
+/* ---------- 代码编辑器与提交 ---------- */
+
+.editor-panel {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+}
+
+.code-editor {
+  width: 100%;
+  min-height: 320px;
+  resize: vertical;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 12px;
+  background: #fff;
+  color: var(--color-text);
+}
+
+.code-editor:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(47, 129, 247, 0.15);
+}
+
+.editor-actions {
+  margin-top: 12px;
+}
+
+/* ---------- 按钮 ---------- */
+
+.btn {
+  display: inline-block;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  padding: 8px 20px;
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: none;
+  background: var(--color-bg-subtle);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.btn:hover {
+  filter: brightness(0.95);
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: var(--color-primary-hover);
+}
+
+/* ---------- 错误页 ---------- */
+
+.error-page {
+  text-align: center;
+  padding: 64px 16px;
+}
+
+.error-code {
+  font-size: 64px;
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.error-page h2 {
+  margin: 8px 0;
+}
+
+.error-page p {
+  color: var(--color-text-muted);
+  margin-bottom: 24px;
+}

@@ -1,0 +1,13 @@
+<div class="problem-detail">
+  <h1>{{problem_title}} {{difficulty_badge}}</h1>
+  <div class="markdown-body">{{description_html}}</div>
+</div>
+<div class="editor-panel">
+  <h2>提交代码</h2>
+  <form action="/problems/{{problem_id}}/submit" method="post">
+    <textarea id="code" name="code" class="code-editor" spellcheck="false" wrap="off">{{cpp_template}}</textarea>
+    <div class="editor-actions">
+      <button type="submit" class="btn btn-primary">提交</button>
+    </div>
+  </form>
+</div>

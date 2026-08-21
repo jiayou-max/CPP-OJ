@@ -21,7 +21,8 @@ TEST(RenderLayout, ContainsTitle) {
 // Layout() 必须把 body 原样嵌入 <main>，页面主体内容才能被渲染出来。
 TEST(RenderLayout, ContainsBodyContent) {
   const std::string html = oj::views::Layout("t", "<h1>hi</h1>");
-  EXPECT_NE(std::string::npos, html.find("<main><h1>hi</h1></main>"));
+  EXPECT_NE(std::string::npos,
+            html.find("<main class=\"container\"><h1>hi</h1></main>"));
 }
 
 // Layout() 输出的文档必须以 </html> 收尾，保证 HTML 结构闭合、可被浏览器正确解析。
@@ -32,17 +33,32 @@ TEST(RenderLayout, ClosesHtmlTag) {
 }
 
 // 边界情况：title 与 body 均为空时 Layout() 不应崩溃，
-// 仍须输出完整文档骨架（含 <main></main> 空主体）。
+// 仍须输出完整文档骨架（含空主体）。
 TEST(RenderLayout, HandlesEmptyTitleAndBody) {
   const std::string html = oj::views::Layout("", "");
   EXPECT_NE(std::string::npos, html.find("<!DOCTYPE html>"));
   EXPECT_NE(std::string::npos, html.find("</html>"));
-  EXPECT_NE(std::string::npos, html.find("<main></main>"));
+  EXPECT_NE(std::string::npos, html.find("<main class=\"container\"></main>"));
 }
 
-// 行为锁定：阶段 0 尚未做 HTML 转义（body 由受控代码拼装），
-// 因此 <script> 会被原样输出。此用例固化当前行为，
-// 后续引入用户输入渲染时需补充转义（SPEC NFR-3），届时应更新该用例。
+// Layout() 必须引用全局样式表，否则所有页面（导航/表格/编辑器）都会失去基础样式。
+TEST(RenderLayout, ContainsStylesheetLink) {
+  const std::string html = oj::views::Layout("t", "b");
+  EXPECT_NE(std::string::npos,
+            html.find("<link rel=\"stylesheet\" href=\"/static/css/style.css\">"));
+}
+
+// Layout() 必须包含顶部导航：品牌名 + 题库/登录/注册链接（阶段 2 起全站导航）。
+TEST(RenderLayout, ContainsNavbar) {
+  const std::string html = oj::views::Layout("t", "b");
+  EXPECT_NE(std::string::npos, html.find("CPP OJ"));
+  EXPECT_NE(std::string::npos, html.find("href=\"/problems\">题库</a>"));
+  EXPECT_NE(std::string::npos, html.find("href=\"/login\">登录</a>"));
+  EXPECT_NE(std::string::npos, html.find("href=\"/register\">注册</a>"));
+}
+
+// 行为锁定：body 由受控代码拼装、未做 HTML 转义（转义发生在页面函数内部，
+// 如 problem_pages 对标题/模板的 HtmlEscape），Layout 本身保持原样透传。
 TEST(RenderLayout, EscapesNothingInBodyByDesign) {
   const std::string html = oj::views::Layout("t", "<script>alert(1)</script>");
   EXPECT_NE(std::string::npos, html.find("<script>alert(1)</script>"));

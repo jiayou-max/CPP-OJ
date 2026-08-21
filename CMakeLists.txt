@@ -69,9 +69,16 @@ find_package(OpenSSL REQUIRED)
 set(OJ_LIB_SOURCES
   src/logger.cpp
   src/routes.cpp
+  src/http_utils.cpp
   src/views/render.cpp
+  src/views/template.cpp
+  src/views/problem_pages.cpp
+  src/views/error_pages.cpp
   src/markdown/md.cpp
   src/db/db.cpp
+  src/db/db_query.cpp
+  src/models/problem.cpp
+  src/services/problem_service.cpp
   src/auth/password.cpp
 )
 
@@ -116,11 +123,13 @@ if(OJ_BUILD_TESTS)
 
   add_executable(oj_tests
     src/test/render_test.cpp
+    src/test/template_test.cpp
     src/test/routes_test.cpp
     src/test/markdown_test.cpp
     src/test/logger_test.cpp
     src/test/db_test.cpp
     src/test/password_test.cpp
+    src/test/problem_service_test.cpp
     ${OJ_LIB_SOURCES}
   )
 

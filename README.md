@@ -88,7 +88,7 @@ ctest --test-dir build --output-on-failure
 ├── CMakeLists.txt            # 构建脚本
 ├── src/                      # 源码（main / routes / views / markdown / ...）
 ├── third_party/httplib.h     # cpp-httplib v0.10.3 (vendored, header-only)
-├── public/                   # 静态资源（css）
+├── www/                      # 前端模板（SSR HTML）+ 静态资源（css）
 ├── db/                       # 建表脚本与初始化
 ├── docs/                     # 文档
 └── tests/                    # 判题内核自测脚本（可选）
