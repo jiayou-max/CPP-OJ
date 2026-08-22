@@ -504,8 +504,8 @@ cpp-oj-vibe-coding/
 ### 阶段 4：用户系统
 - [X] Session/Cookie 中间件 + 注册 / 登录 / 登出
 - [X] 密码加盐哈希（sha256 + salt）（`src/auth/password.*`，阶段 1 初始化 admin 时已落地）
-- [ ] 页面：/login、/register（SSR 表单 + 错误提示）
-- [ ] 访问控制辅助：`require_login` / `require_admin`
+- [X] 页面：/register 、/login（SSR 表单 + 错误提示）
+- [X] 访问控制辅助：`require_login` / `require_admin`
 
 ### 阶段 4.5：LSP 编程辅助（语言服务器协议）-- 可选
 - [ ] clangd 子进程管理 + JSON-RPC over stdio 帧编解码（`src/lsp/lsp_client.*`）

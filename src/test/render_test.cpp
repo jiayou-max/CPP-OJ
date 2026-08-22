@@ -64,4 +64,45 @@ TEST(RenderLayout, EscapesNothingInBodyByDesign) {
   EXPECT_NE(std::string::npos, html.find("<script>alert(1)</script>"));
 }
 
+// 游客导航：NavLinks("") 只含登录/注册链接，不含登出（FR-1.2 游客可见性）。
+TEST(RenderLayout, NavLinksAnonymousHasLoginAndRegister) {
+  const std::string nav = oj::views::NavLinks("");
+  EXPECT_NE(std::string::npos, nav.find("href=\"/login\">登录</a>"));
+  EXPECT_NE(std::string::npos, nav.find("href=\"/register\">注册</a>"));
+  EXPECT_EQ(std::string::npos, nav.find("logout"));
+}
+
+// 登录态导航：NavLinks 显示用户名 + 登出按钮（POST /logout），不显示登录/注册。
+TEST(RenderLayout, NavLinksLoggedInShowsUsernameAndLogout) {
+  const std::string nav = oj::views::NavLinks("alice");
+  EXPECT_NE(std::string::npos, nav.find("alice"));
+  EXPECT_NE(std::string::npos, nav.find("<form action=\"/logout\" method=\"post\""));
+  EXPECT_NE(std::string::npos, nav.find(">登出</button>"));
+  EXPECT_EQ(std::string::npos, nav.find("href=\"/login\""));
+}
+
+// 登录态导航：用户名中的特殊字符必须 HTML 转义（NFR-3 防 XSS）。
+TEST(RenderLayout, NavLinksEscapesUsername) {
+  const std::string nav = oj::views::NavLinks("<script>alert(1)</script>");
+  EXPECT_EQ(std::string::npos, nav.find("<script>"));
+  EXPECT_NE(std::string::npos, nav.find("&lt;script&gt;"));
+}
+
+// Layout 支持传入登录态导航：{{nav_links}} 插槽被正确替换。
+TEST(RenderLayout, LayoutFillsNavLinksSlot) {
+  const std::string html =
+      oj::views::Layout("t", "b", oj::views::NavLinks("alice"));
+  EXPECT_NE(std::string::npos, html.find(">登出</button>"));
+  EXPECT_NE(std::string::npos, html.find("alice"));
+  EXPECT_EQ(std::string::npos, html.find("href=\"/login\">登录</a>"));
+}
+
+// 缺省导航：Layout(title, body) 使用「未登录」导航（登录/注册），行为锁定。
+TEST(RenderLayout, LayoutDefaultsToAnonymousNav) {
+  const std::string html = oj::views::Layout("t", "b");
+  EXPECT_NE(std::string::npos, html.find("href=\"/login\">登录</a>"));
+  EXPECT_NE(std::string::npos, html.find("href=\"/register\">注册</a>"));
+  EXPECT_EQ(std::string::npos, html.find("navbar-logout"));
+}
+
 }  // namespace

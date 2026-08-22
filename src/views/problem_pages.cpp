@@ -30,7 +30,8 @@ int main() {
 
 }  // namespace
 
-std::string ProblemListPage(const std::vector<oj::models::Problem>& problems) {
+std::string ProblemListPage(const std::vector<oj::models::Problem>& problems,
+                            const std::string& username) {
   std::string rows;
   for (const auto& p : problems) {
     rows +=
@@ -46,10 +47,11 @@ std::string ProblemListPage(const std::vector<oj::models::Problem>& problems) {
   const std::string body = problems.empty()
       ? LoadTemplate("problems_empty.html")
       : ReplaceAll(LoadTemplate("problems.html"), "{{rows}}", rows);
-  return Layout("题库 - CPP OJ", body);
+  return Layout("题库 - CPP OJ", body, NavLinks(username));
 }
 
-std::string ProblemDetailPage(const oj::models::Problem& problem) {
+std::string ProblemDetailPage(const oj::models::Problem& problem,
+                              const std::string& username) {
   const std::string markdown_html = oj::markdown::ToHtml(problem.description);
 
   std::string body = LoadTemplate("problem_detail.html");
@@ -62,7 +64,7 @@ std::string ProblemDetailPage(const oj::models::Problem& problem) {
   body = ReplaceAll(body, "{{cpp_template}}",
                     oj::http::HtmlEscape(kCppTemplate));
 
-  return Layout(problem.title + " - CPP OJ", body);
+  return Layout(problem.title + " - CPP OJ", body, NavLinks(username));
 }
 
 }  // namespace oj::views

@@ -83,6 +83,31 @@ body {
   color: #fff;
 }
 
+.navbar-user {
+  margin-left: 20px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.navbar-logout {
+  display: inline-block;
+  margin-left: 20px;
+}
+
+.navbar-logout button {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+}
+
+.navbar-logout button:hover {
+  color: #fff;
+}
+
 /* ---------- 主体与页脚 ---------- */
 
 main.container {
@@ -383,6 +408,65 @@ a {
 
 .result-actions .btn {
   margin-right: 8px;
+}
+
+/* ---------- 登录 / 注册 ---------- */
+
+.auth-panel {
+  max-width: 400px;
+  margin: 40px auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 24px 28px;
+  background: var(--color-bg);
+}
+
+.auth-panel h1 {
+  margin-bottom: 20px;
+}
+
+.auth-form label {
+  display: block;
+  font-size: 14px;
+  margin: 12px 0 4px;
+}
+
+.auth-form input {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.auth-form input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(47, 129, 247, 0.15);
+}
+
+.btn-block {
+  display: block;
+  width: 100%;
+  margin-top: 20px;
+  text-align: center;
+}
+
+.form-error {
+  background: var(--color-hard-bg);
+  color: var(--color-hard);
+  border: 1px solid #ffa7a0;
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.auth-alt {
+  margin-top: 16px;
+  font-size: 14px;
+  color: var(--color-text-muted);
+  text-align: center;
 }
 
 /* ---------- 错误页 ---------- */

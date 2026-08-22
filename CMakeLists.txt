@@ -80,6 +80,7 @@ set(OJ_LIB_SOURCES
   src/views/problem_pages.cpp
   src/views/error_pages.cpp
   src/views/result_pages.cpp
+  src/views/auth_pages.cpp
   src/markdown/md.cpp
   src/db/db.cpp
   src/db/db_query.cpp
@@ -87,8 +88,10 @@ set(OJ_LIB_SOURCES
   src/models/submission.cpp
   src/services/problem_service.cpp
   src/services/submission_service.cpp
+  src/services/user_service.cpp
   src/auth/password.cpp
   src/auth/session.cpp
+  src/auth/middleware.cpp
   src/judge/compiler.cpp
   src/judge/runner.cpp
   src/judge/judge.cpp
@@ -142,6 +145,8 @@ if(OJ_BUILD_TESTS)
     src/test/db_test.cpp
     src/test/password_test.cpp
     src/test/session_test.cpp
+    src/test/middleware_test.cpp
+    src/test/user_service_test.cpp
     src/test/problem_service_test.cpp
     src/test/compiler_test.cpp
     src/test/runner_test.cpp

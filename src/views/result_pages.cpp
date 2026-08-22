@@ -41,7 +41,8 @@ std::string CaseRow(const oj::judge::CaseResult& c) {
 }  // namespace
 
 std::string JudgeResultPage(long long problem_id, const std::string& problem_title,
-                            const oj::judge::JudgeResult& result) {
+                            const oj::judge::JudgeResult& result,
+                            const std::string& username) {
   std::string body = LoadTemplate("result.html");
   body = ReplaceAll(body, "{{status_name}}",
                     oj::models::SubmissionStatusName(result.status));
@@ -73,7 +74,7 @@ std::string JudgeResultPage(long long problem_id, const std::string& problem_tit
   body = ReplaceAll(body, "{{compile_log_html}}", compile_log);
 
   const std::string title = "判题结果：" + problem_title + " - CPP OJ";
-  return Layout(title, body);
+  return Layout(title, body, NavLinks(username));
 }
 
 }  // namespace oj::views

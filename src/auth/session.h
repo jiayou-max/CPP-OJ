@@ -23,6 +23,7 @@ struct SessionConfig {
 // 不落库：服务重启 / 到期 / 注销即失效（个人练手场景，D1/D12）。
 struct Session {
   long long user_id = 0;       // users.id（FR-1.5 提交落库用）
+  std::string username;        // users.username（导航栏展示登录态）
   std::string role;            // "admin" / "user"（FR-1.4，登录时快照）
   std::chrono::steady_clock::time_point last_access;  // 滑动续期基准
 };
@@ -32,9 +33,9 @@ struct Session {
 // 典型用法：
 //   auth::SessionInit();                              // main 启动时初始化一次
 //   auto* mgr = auth::Sessions();
-//   const std::string token = mgr->CreateSession(uid, role);  // → 下发 Set-Cookie
+//   const std::string token = mgr->CreateSession(uid, username, role);  // → 下发 Set-Cookie
 //   auth::Session s;
-//   if (mgr->GetSession(token, s)) { /* 已登录，s.user_id / s.role */ }
+//   if (mgr->GetSession(token, s)) { /* 已登录，s.user_id / s.username / s.role */ }
 //   mgr->DestroySession(token);                       // 登出
 class SessionManager {
  public:
@@ -42,7 +43,8 @@ class SessionManager {
 
   // 新建会话并返回会话 token（即 Cookie 值）。生成随机数失败返回空串。
   // 内部先做一次惰性清理，避免长期运行累积过期会话。
-  std::string CreateSession(long long user_id, const std::string& role);
+  std::string CreateSession(long long user_id, const std::string& username,
+                            const std::string& role);
 
   // 按 token 取会话并刷新最后访问时间（滑动续期）。不存在 / 已过期返回 false，
   // out 不被修改；已过期会话在此顺势清理。

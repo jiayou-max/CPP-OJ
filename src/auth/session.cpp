@@ -61,7 +61,9 @@ std::unique_ptr<SessionManager> g_sessions;
 
 SessionManager::SessionManager(SessionConfig config) : config_(std::move(config)) {}
 
-std::string SessionManager::CreateSession(long long user_id, const std::string& role) {
+std::string SessionManager::CreateSession(long long user_id,
+                                          const std::string& username,
+                                          const std::string& role) {
   CleanupExpired();  // 惰性清理，避免过期会话累积
 
   const std::string token = GenerateToken(kSessionTokenBytes);
@@ -71,6 +73,7 @@ std::string SessionManager::CreateSession(long long user_id, const std::string& 
 
   Session s;
   s.user_id = user_id;
+  s.username = username;
   s.role = role;
   s.last_access = std::chrono::steady_clock::now();
 
