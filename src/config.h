@@ -10,8 +10,8 @@ constexpr const char* kErrorLogPath = "oj_error.log";
 
 // ---- MySQL 连接参数（阶段 0 连接池，对应 SPEC A.1 依赖清单）----
 // 本机默认 root 免密部署；如需覆盖可改用环境变量/配置文件，见 docs/deployment.md。
-constexpr const char* kDbHost = "localhost";     // "localhost" 走 unix socket（本机更常见）
-constexpr unsigned int kDbPort = 3306;
+constexpr const char* kDbHost = "127.0.0.1";     // TCP 直连（localhost 走 /var/run/mysqld 的 3306 socket，会连错实例）
+constexpr unsigned int kDbPort = 3307;           // 本机 3306 root 需密码；实际使用实例为 3307
 constexpr const char* kDbUser = "root";
 constexpr const char* kDbPassword = "";          // 空 = 免密
 constexpr const char* kDbName = "cpp_oj";        // 业务库，由 db/schema.sql 创建（阶段 1）
