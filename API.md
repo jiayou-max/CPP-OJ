@@ -228,7 +228,7 @@
 
 ## 6. 未实现接口（SPEC 已定义，代码未落地）
 
-以下接口在 [SPEC.md](./SPEC.md) 4.5 中定义，当前 `src/routes.cpp` **尚未注册**，调用将返回 404（`admin_pages.cpp` 为空文件，`src/lsp/` 目录不存在）：
+以下接口在 [SPEC.md](./SPEC.md) 4.5 中定义，当前 `src/routes.cpp` **尚未注册**，调用将返回 404（`admin_pages.cpp` 为空文件）：
 
 | 方法 | 路径 | 访问控制 | 功能 | 状态 |
 |------|------|----------|------|------|
@@ -236,11 +236,5 @@
 | GET | `/admin/problems/new` | admin | 新增题目表单页 | 阶段 5 TODO |
 | POST | `/admin/problems` | admin | 创建题目（含测试用例，事务） | 阶段 5 TODO |
 | POST | `/admin/problems/{id}/delete` | admin | 物理删除题目（级联删用例） | 阶段 5 TODO |
-| POST | `/lsp/open` | 登录 | 建立/复用 LSP 会话并打开文档 | 阶段 4.5 TODO |
-| POST | `/lsp/change` | 登录 | 同步代码全文（didChange） | 阶段 4.5 TODO |
-| POST | `/lsp/completion` | 登录 | 补全候选 | 阶段 4.5 TODO |
-| POST | `/lsp/hover` | 登录 | 悬停文档 | 阶段 4.5 TODO |
-| POST | `/lsp/close` | 登录 | 关闭会话 | 阶段 4.5 TODO |
-| GET | `/lsp/events` | 登录 | SSE 推送诊断 | 阶段 4.5 TODO |
 
 对应中间件 `auth::RequireAdmin` 已实现（`src/auth/middleware.h`），可供阶段 5 直接使用。
