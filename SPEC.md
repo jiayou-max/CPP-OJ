@@ -416,6 +416,7 @@ cpp-oj-vibe-coding/
 - [ ] 页面：/admin/problems 列表 + 删除（二次确认）
 - [ ] 页面：/admin/problems/new 表单（标题/描述/难度/多组用例）
 - [ ] 后端：创建题目（事务：题目 + 用例）、物理删除（级联删用例）
+- [ ] 大屏落地页 -- 首页
 - [ ] 权限校验（require_admin）
 
 ### 阶段 6：收尾
