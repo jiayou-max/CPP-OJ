@@ -1,13 +1,58 @@
 <div class="problem-detail">
-  <h1>{{problem_title}} {{difficulty_badge}}</h1>
-  <div class="markdown-body">{{description_html}}</div>
-</div>
-<div class="editor-panel">
-  <h2>提交代码</h2>
-  <form action="/problems/{{problem_id}}/submit" method="post">
-    <textarea id="code" name="code" class="code-editor" spellcheck="false" wrap="off">{{cpp_template}}</textarea>
-    <div class="editor-actions">
-      <button type="submit" class="btn btn-primary">提交</button>
+  <div class="problem-head">
+    <span class="problem-id">#{{problem_id}}</span>
+    <h1>{{problem_title}}</h1>
+    {{difficulty_badge}}
+  </div>
+  <div class="problem-layout">
+    <div class="problem-desc-col">
+      <div class="markdown-body">{{description_html}}</div>
     </div>
-  </form>
+    <div class="problem-editor-col">
+      <div class="editor-panel">
+        <div class="editor-toolbar">
+          <span class="editor-label">main.cpp</span>
+          <span class="editor-hint">C++17 · g++ -O2</span>
+        </div>
+        <div id="code-editor"></div>
+        <form id="submit-form" action="/problems/{{problem_id}}/submit" method="post">
+          <textarea id="code" name="code" class="sr-only" spellcheck="false" wrap="off">{{cpp_template}}</textarea>
+          <div class="editor-actions">
+            <button type="submit" class="btn btn-primary">运行提交</button>
+            <span class="hint">Tab 缩进 · Ctrl+Enter 提交</span>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 </div>
+<script src="/static/js/ace/ace.min.js"></script>
+<script src="/static/js/ace/mode-c_cpp.min.js"></script>
+<script src="/static/js/ace/theme-monokai.min.js"></script>
+<script>
+(function () {
+  var ta = document.getElementById("code");
+  var editor = ace.edit("code-editor");
+  editor.setTheme("ace/theme/monokai");
+  editor.session.setMode("ace/mode/c_cpp");
+  editor.session.setUseWorker(false);
+  editor.setOptions({
+    fontSize: 14,
+    tabSize: 4,
+    useSoftTabs: true,
+    showPrintMargin: false,
+    showGutter: true
+  });
+  editor.setValue(ta.value, -1);
+  editor.focus();
+  var form = document.getElementById("submit-form");
+  form.addEventListener("submit", function () {
+    ta.value = editor.getValue();
+  });
+  editor.commands.addCommand({
+    name: "submit",
+    bindKey: { win: "Ctrl-Enter", mac: "Command-Enter" },
+    exec: function () { form.submit(); }
+  });
+})();
+</script>

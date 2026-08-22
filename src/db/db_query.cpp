@@ -28,6 +28,26 @@ PreparedStatement::PreparedStatement(PooledConnection conn, const std::string& s
   prepare_ok_ = true;
 }
 
+PreparedStatement::PreparedStatement(MYSQL* raw, const std::string& sql) {
+  if (raw == nullptr) {
+    error_ = "无可用数据库连接";
+    return;
+  }
+
+  stmt_ = mysql_stmt_init(raw);
+  if (stmt_ == nullptr) {
+    error_ = "mysql_stmt_init 失败（内存不足）";
+    return;
+  }
+
+  if (mysql_stmt_prepare(stmt_, sql.data(), static_cast<unsigned long>(sql.size())) != 0) {
+    error_ = mysql_stmt_error(stmt_);
+    return;
+  }
+
+  prepare_ok_ = true;
+}
+
 PreparedStatement::~PreparedStatement() {
   if (stmt_ != nullptr) {
     mysql_stmt_free_result(stmt_);

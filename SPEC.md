@@ -38,7 +38,7 @@
 | 编号 | 需求 |
 |------|------|
 | FR-2.1 | **题库列表页**: 展示所有题目（标题、难度），支持基础导航 |
-| FR-2.2 | **题目详情/做题页**: Markdown 描述 + textarea 代码编辑器（预填 C++ 模板）+ 提交按钮 + 结果展示区 |
+| FR-2.2 | **题目详情/做题页**: Markdown 描述 + **ace.js 代码编辑器**（预填 C++ 模板）+ 提交按钮 + 结果展示区 |
 | FR-2.3 | 题目不存在 → 404 页面 |
 
 ### 2.3 判题
@@ -55,7 +55,7 @@
 | 编号 | 需求 |
 |------|------|
 | FR-4.1 | 仅 admin 可访问 `/admin/*` 管理题目 |
-| FR-4.2 | **新增题目**: 标题、描述（Markdown）、难度、多组输入/输出用例文本块 |
+| FR-4.2 | **新增/编辑题目**: 标题、描述（Markdown）、难度、多组输入/输出用例文本块；编辑时整体替换用例 |
 | FR-4.3 | **删除题目**: 前端二次确认（confirm）后**物理删除**，无回收站 |
 | FR-4.4 | 普通用户无管理入口/接口 |
 
@@ -89,7 +89,7 @@
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │                          Browser                             │
-│       原生 HTML/CSS/JS · 页面整页刷新 · textarea 代码编辑器   │
+│       原生 HTML/CSS/JS · 页面整页刷新 · ace.js 代码编辑器   │
 └─────────────────────────────┬────────────────────────────────┘
                               │ HTTP (SSR: 后端输出 HTML)
 ┌─────────────────────────────▼────────────────────────────────┐
@@ -117,7 +117,7 @@
 | 层 | 选型 | 理由 |
 |----|------|------|
 | 后端 | C++ + [cpp-httplib](https://github.com/yhirose/cpp-httplib) (header-only) | 硬性约束，单文件集成简单 |
-| 前端 | 原生 HTML + CSS + JS；textarea 代码编辑器 | 硬性约束，零构建链，不引入 CodeMirror/Monaco |
+| 前端 | 原生 HTML + CSS + JS；ace.js 代码编辑器（vendored，零构建链） | 硬性约束零构建链；ace.js 本地化以支持离线使用 |
 | 渲染 | 服务端渲染 (SSR)，后端直接输出 HTML | 已确认；前端 JS 仅做表单/confirm 等增强 |
 | Markdown | md4c 等轻量 C++ 库，后端转 HTML | 已确认允许引入 |
 | 数据库 | MySQL | 已确认；题目/用户/提交持久化 |
@@ -250,7 +250,7 @@ POST /problems/{id}/submit (登录后)
 
 | 方法 | 路径 | 访问控制 | 功能 |
 |------|------|----------|------|
-| GET | `/` | 公开 | 重定向 `/problems` |
+| GET | `/` | 公开 | 落地页首页（大屏：品牌 hero + 实时统计 + 终端演示 + 特性区） |
 | GET | `/problems` | 公开 | 题库列表 |
 | GET | `/problems/{id}` | 公开 | 题目详情 + 编辑器 |
 | POST | `/problems/{id}/submit` | **登录** | 提交代码并同步判题，渲染结果页 |
@@ -260,6 +260,8 @@ POST /problems/{id}/submit (登录后)
 | GET | `/admin/problems` | **admin** | 题目管理列表 |
 | GET | `/admin/problems/new` | **admin** | 新增题目表单页 |
 | POST | `/admin/problems` | **admin** | 创建题目（含测试用例） |
+| GET | `/admin/problems/{id}/edit` | **admin** | 编辑题目表单页（预填现有字段与用例） |
+| POST | `/admin/problems/{id}/edit` | **admin** | 保存题目修改（标题/描述/难度/用例，事务替换） |
 | POST | `/admin/problems/{id}/delete` | **admin** | 删除题目（前端二次确认，物理删除+级联删用例） |
 
 > 页面路由均为整页刷新。
@@ -323,11 +325,17 @@ cpp-oj-vibe-coding/
 │
 ├── www/
 │   ├── layout.html           # SSR 页面骨架模板（导航 + 页脚，{{title}}/{{body}} 插槽）
-│   ├── problems.html         # 题库列表页模板（{{rows}} 插槽）
+│   ├── index.html            # 落地页首页模板（大屏 hero + 统计 + 终端演示 + 特性区）
+│   ├── problems.html         # 题库列表页模板（{{rows}} / {{count}} 插槽）
 │   ├── problems_empty.html   # 题库为空时的占位模板
-│   ├── problem_detail.html   # 题目详情 + 编辑器页模板
+│   ├── problem_detail.html   # 题目详情 + ace.js 编辑器页模板
+│   ├── result.html           # 判题结果页模板（总体 + 逐用例 + 统计）
+│   ├── login.html / register.html  # 登录 / 注册表单页模板
 │   ├── error.html            # 404 / 403 / 500 错误页模板
-│   ├── css/style.css         # 全局样式
+│   ├── admin_problems.html   # 管理后台题目列表模板（编辑 + 删除二次确认）
+│   ├── admin_problem_form.html# 管理后台新增/编辑题目共用模板（多组用例动态增删）
+│   ├── css/style.css         # 全局样式（深色科技风）
+│   └── js/ace/               # vendored ace.js（loader + c_cpp 模式 + monokai 主题）
 │
 ├── db/
 │   ├── schema.sql                    # 建表脚本（users/problems/testcases/submissions）
@@ -413,10 +421,14 @@ cpp-oj-vibe-coding/
 - [X] 访问控制辅助：`require_login` / `require_admin`
 
 ### 阶段 5：管理后台
-- [ ] 页面：/admin/problems 列表 + 删除（二次确认）
-- [ ] 页面：/admin/problems/new 表单（标题/描述/难度/多组用例）
-- [ ] 后端：创建题目（事务：题目 + 用例）、物理删除（级联删用例）
-- [ ] 大屏落地页 -- 首页
+- [X] 页面：/admin/problems 列表 + 编辑 + 删除（二次确认）
+- [X] 页面：/admin/problems/new 表单（标题/描述/难度/多组用例）
+- [X] 后端：创建题目（事务：题目 + 用例）、编辑题目（事务替换用例）、物理删除（级联删用例）
+- [X] 大屏落地页 -- 首页
+
+### 阶段 5.1：深色科技风主题与 ace.js 编辑器
+- [X] 全站深色科技风主题（OLED 深空蓝黑 + 霓虹青绿渐变），统一 layout / 题库 / 详情 / 结果 / 登录注册 / 错误页 / 落地页 / 管理后台
+- [X] 题目详情页接入 ace.js（vendored 于 `www/js/ace/`）代码编辑器，语法高亮 + Ctrl+Enter 提交
 
 ### 阶段 6：收尾
 - [ ] 权限校验（require_admin）
@@ -456,7 +468,7 @@ cpp-oj-vibe-coding/
 | D2 | 用户模型 | 自由注册 + 登录做题 + 游客浏览；内置唯一管理员 |
 | D3 | 角色 | admin（管理题目）/ user（查看 + 做题） |
 | D4 | 技术栈 | cpp-httplib + 原生三件套；SSR；MySQL；md4c；g++ 判题 |
-| D5 | 编辑器 | 纯原生 textarea 代码编辑器；不做 CodeMirror/Monaco |
+| D5 | 编辑器 | 题目详情页使用 ace.js 代码编辑器（vendored 于 `www/js/ace/`，离线可用）；不引入 CodeMirror/Monaco |
 | D6 | 题目字段 | 基础字段：标题/描述(Markdown)/难度/多组 I/O 用例文本块；无每题的时空限制 |
 | D7 | 判题 | 仅 C++（预留扩展）；多组用例比对 stdout；同步 + 信号量限流 |
 | D8 | 判题限制 | wall time 2s → TLE；256MB RLIMIT_AS → MLE；编译 10s 兜底 → CE |

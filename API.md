@@ -35,16 +35,22 @@
 
 | 方法 | 路径 | 访问控制 | 功能 |
 |------|------|----------|------|
-| GET | `/` | 公开 | 重定向 `/problems` |
+| GET | `/` | 公开 | 落地页首页（大屏 hero + 统计 + 终端演示 + 特性区） |
 | GET | `/problems` | 公开 | 题库列表页 |
-| GET | `/problems/{id}` | 公开 | 题目详情 + 代码编辑器页 |
+| GET | `/problems/{id}` | 公开 | 题目详情 + ace.js 代码编辑器页 |
 | POST | `/problems/{id}/submit` | **登录** | 提交代码同步判题，渲染结果页 |
 | GET | `/login` | 公开（已登录则回题库） | 登录表单页 |
 | POST | `/login` | 公开 | 处理登录 |
 | GET | `/register` | 公开（已登录则回题库） | 注册表单页 |
 | POST | `/register` | 公开 | 处理注册（成功自动登录） |
 | POST | `/logout` | **登录** | 登出并清 Cookie |
-| GET | `/static/*` | 公开 | 静态资源（`www/` 挂载，如 `/static/css/style.css`） |
+| GET | `/admin/problems` | **admin** | 管理后台题目列表（含编辑/删除，删除二次确认） |
+| GET | `/admin/problems/new` | **admin** | 新增题目表单页 |
+| POST | `/admin/problems` | **admin** | 创建题目（含测试用例，事务） |
+| GET | `/admin/problems/{id}/edit` | **admin** | 编辑题目表单页（预填现有字段与用例） |
+| POST | `/admin/problems/{id}/edit` | **admin** | 保存题目修改（标题/描述/难度/用例，事务） |
+| POST | `/admin/problems/{id}/delete` | **admin** | 物理删除题目（级联删用例） |
+| GET | `/static/*` | 公开 | 静态资源（`www/` 挂载，如 `/static/css/style.css`、`/static/js/ace/ace.min.js`） |
 
 ---
 
@@ -52,10 +58,10 @@
 
 ### 2.1 `GET /`
 
-重定向到 `/problems`。
+落地页首页（阶段 5「大屏落地页」）：品牌大屏 hero + 实时统计（题目 / 用户 / 提交数）+ 终端演示 + 特性区。
 
 - **参数**：无
-- **响应**：`302`，`Location: /problems`
+- **响应**：`200` 落地页 HTML 页面。统计依赖数据库：不可用时渲染为 `--`，不返回 500。
 
 ---
 
@@ -72,11 +78,11 @@
 
 ### 2.3 `GET /problems/{id}`
 
-题目详情/做题页（FR-2.2）：Markdown 渲染的题目描述 + 预填 C++ 模板的 `textarea`（`name="code"`）+ 提交表单（`action="/problems/{id}/submit"`）。
+题目详情/做题页（FR-2.2）：Markdown 渲染的题目描述 + **ace.js 代码编辑器**（预填 C++ 模板，语法高亮，`Ctrl+Enter` 提交）+ 提交表单（`action="/problems/{id}/submit"`）。编辑器内容随表单经 `name="code"` 的隐藏 textarea 提交。
 
 - **路径参数**：`{id}` 十进制非负整数（`http::ParseId` 校验）。
 - **响应**：
-  - `200`：题目详情页（标题 + 难度徽章 + Markdown 描述 + 编辑器）。
+  - `200`：题目详情页（标题 + 难度徽章 + Markdown 描述 + ace.js 编辑器）。
   - `404`：id 非法（非数字）或题目不存在 → 404 错误页「页面不存在」/「题目不存在」。
   - `500`：数据库查询失败（`kDbError`）。
 
@@ -84,7 +90,7 @@
 
 ### 2.4 `GET /login`
 
-登录表单页（FR-1.2）。
+登录表单页（FR-1.2），用户名 / 密码输入框附使用提示。
 
 - **参数**：无
 - **响应**：
@@ -95,11 +101,11 @@
 
 ### 2.5 `GET /register`
 
-注册表单页（FR-1.1）。
+注册表单页（FR-1.1），含用户名 / 密码（6~64 位）/ 确认密码三个输入框及输入提示。
 
 - **参数**：无
 - **响应**：
-  - `200`：注册表单页（字段 `username` / `password`，密码 6~64 位）。
+  - `200`：注册表单页（字段 `username` / `password` / `password2`）。
   - `302`：**已登录**用户访问 → 重定向 `/problems`。
 
 ---
@@ -124,10 +130,12 @@
   |------|------|------|----------|
   | `username` | string | 是 | 仅字母/数字/下划线，长度 1~64；不可为 `admin`（FR-1.3，由白名单 + 唯一键共同保证） |
   | `password` | string | 是 | 长度 6~64 |
+  | `password2` | string | 是 | 确认密码，须与 `password` 完全一致 |
 
 - **响应**：
   - `302` + `Set-Cookie: oj_session=<token>`：注册成功，重定向 `/problems`。
   - `200`：校验失败 → 注册表单页 + 错误提示
+    - 两次密码不一致：「两次输入的密码不一致。」
     - 用户名格式非法：「用户名仅允许字母/数字/下划线（1~64 位），密码长度 6~64。」
     - 用户名已存在：「用户名已存在，请换一个。」（不落库）
   - `500`：数据库不可用 / 会话创建失败（`Render500`）。
@@ -226,15 +234,75 @@
 
 ---
 
-## 6. 未实现接口（SPEC 已定义，代码未落地）
+## 6. 管理后台接口（阶段 5，admin 专属）
 
-以下接口在 [SPEC.md](./SPEC.md) 4.5 中定义，当前 `src/routes.cpp` **尚未注册**，调用将返回 404（`admin_pages.cpp` 为空文件）：
+> 对应中间件 `auth::RequireAdmin`（`src/auth/middleware.h`）：未登录 → 302 `/login`；已登录非 admin → 403。
 
-| 方法 | 路径 | 访问控制 | 功能 | 状态 |
-|------|------|----------|------|------|
-| GET | `/admin/problems` | admin | 题目管理列表 | 阶段 5 TODO |
-| GET | `/admin/problems/new` | admin | 新增题目表单页 | 阶段 5 TODO |
-| POST | `/admin/problems` | admin | 创建题目（含测试用例，事务） | 阶段 5 TODO |
-| POST | `/admin/problems/{id}/delete` | admin | 物理删除题目（级联删用例） | 阶段 5 TODO |
+### 6.1 `GET /admin/problems`
 
-对应中间件 `auth::RequireAdmin` 已实现（`src/auth/middleware.h`），可供阶段 5 直接使用。
+管理后台题目列表（FR-4.1）。含「新增题目」入口；每行带「编辑」链接与「删除」表单（前端 JS 二次确认后 POST）。
+
+- **访问控制**：admin。
+- **响应**：`200` 管理页 HTML（题目管理）。题库为空显示占位提示。
+
+### 6.2 `GET /admin/problems/new`
+
+新增题目表单页（FR-4.2）：标题 / 难度 / Markdown 描述 / 多组测试用例（动态增删）。
+
+- **访问控制**：admin。
+- **响应**：`200` 表单页 HTML。
+
+### 6.3 `POST /admin/problems`
+
+创建题目（FR-4.2）。事务写入题目 + 全部用例，任一步失败整体回滚。
+
+- **请求体**（`application/x-www-form-urlencoded`）：
+
+  | 字段 | 类型 | 说明 |
+  |------|------|------|
+  | `title` | string | 题目标题（非空，≤255） |
+  | `description` | string | Markdown 描述（非空） |
+  | `difficulty` | string | `easy` / `medium` / `hard` |
+  | `input[]` | string（多值） | 第 i 组用例输入（与 `expected[]` 同下标成对） |
+  | `expected[]` | string（多值） | 第 i 组用例期望输出 |
+
+- **响应**：
+  - `302` + `Location: /admin/problems`：创建成功。
+  - `200`：校验失败（缺标题/描述/至少一组非空用例）→ 表单页错误提示，不落库。
+  - `500`：数据库不可用 / 事务失败。
+
+### 6.4 `POST /admin/problems/{id}/delete`
+
+物理删除题目（FR-4.3）。`DELETE problems` 经外键 CASCADE 级联删除 testcases 与 submissions（SPEC 4.3.1）。
+
+- **访问控制**：admin；前端二次确认（confirm）后提交。
+- **响应**：`302` + `Location: /admin/problems`；id 非法 → `404`；数据库失败 → `500`。
+
+### 6.5 `GET /admin/problems/{id}/edit`
+
+编辑题目表单页（阶段 5 扩展）：预填现有标题 / 难度 / Markdown 描述 / 既有测试用例，可修改并增删用例。
+
+- **访问控制**：admin。
+- **响应**：`200` 表单页 HTML；id 非法或题目不存在 → `404`；数据库失败 → `500`。
+
+### 6.6 `POST /admin/problems/{id}/edit`
+
+保存题目修改（标题 / 描述 / 难度 / 测试用例整体替换）。事务：`UPDATE problems` + `DELETE` 旧用例 + `INSERT` 新用例，任一步失败整体回滚。
+
+- **请求体**：字段与 `POST /admin/problems` 完全一致（`title` / `description` / `difficulty` / `input[]` / `expected[]`）。
+- **响应**：
+  - `302` + `Location: /admin/problems`：保存成功。
+  - `200`：校验失败 → 表单页错误提示，并**回填用户已填写内容**，不落库。
+  - `404`：id 非法或题目不存在。
+  - `500`：数据库不可用 / 事务失败。
+
+---
+
+## 7. 附：已实现接口变更记录
+
+| 接口 | 变更 |
+|------|------|
+| `GET /` | 由「302 重定向 `/problems`」改为「落地页首页」（阶段 5 大屏落地页） |
+| 管理后台四接口 | 由「规划中（404）」改为「已实现」（阶段 5） |
+| 管理后台编辑 | 新增 `GET/POST /admin/problems/{id}/edit`（编辑标题/描述/难度/用例） |
+| 题目详情页编辑器 | 由 textarea 改为 ace.js（vendored，离线可用） |

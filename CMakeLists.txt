@@ -81,6 +81,7 @@ set(OJ_LIB_SOURCES
   src/views/error_pages.cpp
   src/views/result_pages.cpp
   src/views/auth_pages.cpp
+  src/views/admin_pages.cpp
   src/markdown/md.cpp
   src/db/db.cpp
   src/db/db_query.cpp

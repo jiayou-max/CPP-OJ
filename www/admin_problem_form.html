@@ -1,0 +1,62 @@
+<div class="admin-page">
+  <div class="page-head">
+    <h1>{{page_title}}</h1>
+    <a class="btn" href="/admin/problems">返回列表</a>
+  </div>
+  {{error_html}}
+  <form action="{{form_action}}" method="post" class="admin-form">
+    <label for="title">标题</label>
+    <input type="text" id="title" name="title" maxlength="255" placeholder="例如：两数之和" value="{{title_value}}" required>
+
+    <label for="difficulty">难度</label>
+    <select id="difficulty" name="difficulty">
+      <option value="easy" {{difficulty_easy}}>简单</option>
+      <option value="medium" {{difficulty_medium}}>中等</option>
+      <option value="hard" {{difficulty_hard}}>困难</option>
+    </select>
+
+    <label for="description">描述（Markdown）</label>
+    <textarea id="description" name="description" rows="10" placeholder="使用 Markdown 编写题目描述、输入输出格式与示例..." required>{{description_value}}</textarea>
+
+    <div class="tc-head">
+      <h2>测试用例</h2>
+      <button type="button" class="btn btn-sm btn-cyan" id="add-tc">+ 添加用例</button>
+    </div>
+    <div id="tc-list">
+      {{tc_groups}}
+    </div>
+
+    <div class="editor-actions" style="margin-top:24px;border-top:1px solid var(--border);padding-top:18px;padding-left:0;padding-right:0">
+      <button type="submit" class="btn btn-primary">{{submit_label}}</button>
+      <a class="btn" href="/admin/problems">取消</a>
+    </div>
+  </form>
+</div>
+<script>
+(function () {
+  var list = document.getElementById("tc-list");
+  var src = list.querySelector(".tc-group");
+  function syncRemoveButtons() {
+    var n = list.querySelectorAll(".tc-group").length;
+    list.querySelectorAll(".tc-remove").forEach(function (b) {
+      b.hidden = n <= 1;
+    });
+  }
+  syncRemoveButtons();
+
+  document.getElementById("add-tc").addEventListener("click", function () {
+    var node = src.cloneNode(true);
+    node.querySelectorAll("textarea").forEach(function (t) { t.value = ""; });
+    list.appendChild(node);
+    syncRemoveButtons();
+  });
+
+  list.addEventListener("click", function (e) {
+    var btn = e.target.closest(".tc-remove");
+    if (!btn) return;
+    if (list.querySelectorAll(".tc-group").length <= 1) return;
+    btn.closest(".tc-group").remove();
+    syncRemoveButtons();
+  });
+})();
+</script>

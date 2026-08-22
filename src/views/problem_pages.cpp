@@ -28,10 +28,34 @@ int main() {
 }
 )";
 
+// 统计数字渲染：-1（数据库不可用）→ "--"，否则十进制。
+std::string CountText(long long count) {
+  if (count < 0) {
+    return "--";
+  }
+  return std::to_string(count);
+}
+
 }  // namespace
 
+std::string LandingPage(const std::string& username, const std::string& role,
+                        long long problem_count, long long user_count,
+                        long long submission_count) {
+  std::string body = LoadTemplate("index.html");
+  body = ReplaceAll(body, "{{cta_secondary}}",
+                    username.empty()
+                        ? "<a class=\"btn btn-cyan btn-lg\" href=\"/register\">注册账号</a>"
+                        : "<a class=\"btn btn-cyan btn-lg\" href=\"/problems\">进入控制台</a>");
+  body = ReplaceAll(body, "{{problem_count}}", CountText(problem_count));
+  body = ReplaceAll(body, "{{user_count}}", CountText(user_count));
+  body = ReplaceAll(body, "{{submission_count}}", CountText(submission_count));
+
+  return Layout("CPP OJ - 在线评测系统", body, NavLinks(username, role));
+}
+
 std::string ProblemListPage(const std::vector<oj::models::Problem>& problems,
-                            const std::string& username) {
+                            const std::string& username,
+                            const std::string& role) {
   std::string rows;
   for (const auto& p : problems) {
     rows +=
@@ -46,12 +70,14 @@ std::string ProblemListPage(const std::vector<oj::models::Problem>& problems,
   // 空题库与列表页共用题库标题，正文模板按是否有题二选一。
   const std::string body = problems.empty()
       ? LoadTemplate("problems_empty.html")
-      : ReplaceAll(LoadTemplate("problems.html"), "{{rows}}", rows);
-  return Layout("题库 - CPP OJ", body, NavLinks(username));
+      : ReplaceAll(ReplaceAll(LoadTemplate("problems.html"), "{{rows}}", rows),
+                   "{{count}}", std::to_string(problems.size()));
+  return Layout("题库 - CPP OJ", body, NavLinks(username, role));
 }
 
 std::string ProblemDetailPage(const oj::models::Problem& problem,
-                              const std::string& username) {
+                              const std::string& username,
+                              const std::string& role) {
   const std::string markdown_html = oj::markdown::ToHtml(problem.description);
 
   std::string body = LoadTemplate("problem_detail.html");
@@ -64,7 +90,7 @@ std::string ProblemDetailPage(const oj::models::Problem& problem,
   body = ReplaceAll(body, "{{cpp_template}}",
                     oj::http::HtmlEscape(kCppTemplate));
 
-  return Layout(problem.title + " - CPP OJ", body, NavLinks(username));
+  return Layout(problem.title + " - CPP OJ", body, NavLinks(username, role));
 }
 
 }  // namespace oj::views

@@ -36,4 +36,7 @@ UserStatus RegisterUser(const std::string& username, const std::string& password
 UserStatus LoginUser(const std::string& username, const std::string& password,
                      oj::models::User& out);
 
+// 用户总数（落地页统计用）。数据库不可用返回 -1。
+long long CountUsers();
+
 }  // namespace oj::services

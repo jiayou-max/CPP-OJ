@@ -1,12 +1,18 @@
-<div class="auth-panel">
-  <h1>登录</h1>
-  {{error_html}}
-  <form action="/login" method="post" class="auth-form">
-    <label for="username">用户名</label>
-    <input type="text" id="username" name="username" maxlength="64" autocomplete="username" required>
-    <label for="password">密码</label>
-    <input type="password" id="password" name="password" maxlength="64" autocomplete="current-password" required>
-    <button type="submit" class="btn btn-primary btn-block">登录</button>
-  </form>
-  <p class="auth-alt">还没有账号？<a href="/register">立即注册</a></p>
+<div class="auth-wrap">
+  <div class="auth-panel">
+    <h1>登录</h1>
+    {{error_html}}
+    <form action="/login" method="post" class="auth-form">
+      <label for="username">用户名</label>
+      <input type="text" id="username" name="username" maxlength="64" autocomplete="username" required>
+      <small class="field-hint">输入注册时使用的用户名，区分大小写。</small>
+
+      <label for="password">密码</label>
+      <input type="password" id="password" name="password" maxlength="64" autocomplete="current-password" required>
+      <small class="field-hint">忘记密码？可联系管理员重置。</small>
+
+      <button type="submit" class="btn btn-primary btn-block" style="margin-top:22px">登录</button>
+    </form>
+    <p class="auth-alt">还没有账号？<a href="/register">立即注册</a></p>
+  </div>
 </div>

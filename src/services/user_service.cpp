@@ -167,4 +167,22 @@ UserStatus LoginUser(const std::string& username, const std::string& password,
   return UserStatus::kOk;
 }
 
+long long CountUsers() {
+  oj::db::ConnectionPool* pool = oj::db::DbPool();
+  if (pool == nullptr) {
+    return -1;
+  }
+  auto conn = pool->Acquire();
+  if (!conn) {
+    return -1;
+  }
+
+  oj::db::PreparedStatement stmt(std::move(conn), "SELECT COUNT(*) FROM users");
+  if (!stmt.PrepareOk() || !stmt.Execute() || !stmt.Fetch()) {
+    LogError("user_service: 统计用户数失败");
+    return -1;
+  }
+  return std::stoll(stmt.GetString(0));
+}
+
 }  // namespace oj::services

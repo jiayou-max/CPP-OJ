@@ -1,0 +1,61 @@
+<section class="hero">
+  <p class="hero-eyebrow">C++ Online Judge</p>
+  <h1 class="hero-title">让每一行代码<br>都被<span class="grad-text">严谨验证</span></h1>
+  <p class="hero-sub">
+    cpp-oj 是一个功能闭环的仿 LeetCode 在线评测系统，基于 C++ 与原生三件套构建，
+    内置信号量限流判题内核，完整支持 AC / WA / TLE / MLE / RE / CE 六种判题状态。
+  </p>
+  <div class="hero-actions">
+    <a class="btn btn-primary btn-lg" href="/problems">开始刷题</a>
+    {{cta_secondary}}
+  </div>
+  <div class="hero-stats">
+    <div class="stat"><span class="stat-value">{{problem_count}}</span><span class="stat-label">题目</span></div>
+    <div class="stat"><span class="stat-value">{{user_count}}</span><span class="stat-label">用户</span></div>
+    <div class="stat"><span class="stat-value">{{submission_count}}</span><span class="stat-label">提交</span></div>
+  </div>
+</section>
+
+<div class="terminal-demo">
+  <div class="terminal-head">
+    <span class="dot dot-red"></span>
+    <span class="dot dot-yellow"></span>
+    <span class="dot dot-green"></span>
+    <span class="terminal-title">judge kernel · main.cpp → oj_server</span>
+  </div>
+  <pre class="terminal-body">$ g++ -O2 -o main main.cpp
+<span class="tok-dim">[compile]</span> OK <span class="tok-dim">(0.4s)</span>
+<span class="tok-dim">[run]</span> fork → setuid(nobody) → setrlimit(2s / 256MB)
+
+<span class="tok-cyan">Case #1</span> <span class="tok-ok">AC</span>  <span class="tok-dim">2 ms · 1,024 KB</span>
+<span class="tok-cyan">Case #2</span> <span class="tok-ok">AC</span>  <span class="tok-dim">1 ms · 1,020 KB</span>
+<span class="tok-cyan">Case #3</span> <span class="tok-ok">AC</span>  <span class="tok-dim">2 ms · 1,028 KB</span>
+
+<span class="tok-pink">┌──────────────────────────────────┐</span>
+<span class="tok-pink">│</span>  <span class="tok-ok">VERDICT: ALL PASS (AC)</span>         <span class="tok-pink">│</span>
+<span class="tok-pink">└──────────────────────────────────┘</span>
+<span class="tok-dim">submission #1208 saved → MySQL</span></pre>
+</div>
+
+<section class="features">
+  <div class="feature">
+    <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg></div>
+    <h3>判题内核</h3>
+    <p>fork + 降权 nobody + rlimit 资源限制，2s / 256MB 硬性约束，信号量限流防止死循环代码拖垮服务器。</p>
+  </div>
+  <div class="feature">
+    <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"></path><path d="M10 22h4"></path><path d="M11.09 14c.34-.36.55-.8.55-1.25 0-.75-.6-1.36-.92-1.86C9.92 9.5 9.68 8.7 10.13 7.6 10.82 6 12.63 5 14.1 5.22c1.79.25 2.9 1.71 2.9 3.28 0 2.17-2.6 2.97-2.6 4.5"></path><path d="M12 19h.01"></path></svg></div>
+    <h3>细粒度结果</h3>
+    <p>总体状态 + 逐用例比对 + 实际运行时间与内存峰值，编译错误附完整 g++ 日志，问题一眼定位。</p>
+  </div>
+  <div class="feature">
+    <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg></div>
+    <h3>数据持久化</h3>
+    <p>题目 / 用户 / 提交记录全部落 MySQL，预编译 SQL 防注入，密码加盐哈希存储，会话 Cookie 鉴权。</p>
+  </div>
+  <div class="feature">
+    <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg></div>
+    <h3>嵌入式编辑器</h3>
+    <p>基于 ace.js 的 C++ 代码编辑器，语法高亮、行号、Tab 缩进，Ctrl+Enter 一键提交，还原 LeetCode 体验。</p>
+  </div>
+</section>

@@ -1,0 +1,21 @@
+<div class="admin-page">
+  <div class="page-head">
+    <h1>题目管理</h1>
+    <a class="btn btn-primary" href="/admin/problems/new">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      新增题目
+    </a>
+  </div>
+  {{error_html}}
+  {{list_html}}
+</div>
+<script>
+(function () {
+  document.addEventListener("submit", function (e) {
+    var f = e.target.closest("form.admin-delete");
+    if (f && !window.confirm("确定要删除该题目吗？此操作不可恢复，相关测试用例将级联删除。")) {
+      e.preventDefault();
+    }
+  });
+})();
+</script>

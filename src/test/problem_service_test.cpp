@@ -127,4 +127,206 @@ TEST_F(ProblemServiceTest, PreparedStatementLongLongBind) {
   EXPECT_EQ(1u, stmt.ColumnCount());
 }
 
+// CreateProblem 应事务性写入题目 + 多组用例，并返回自增 id（FR-4.2）。
+TEST_F(ProblemServiceTest, CreateProblemInsertsProblemAndCases) {
+  std::vector<oj::models::TestCase> cases;
+  oj::models::TestCase t1;
+  t1.input = "1 2\n";
+  t1.expected = "3\n";
+  oj::models::TestCase t2;
+  t2.input = "4 5\n";
+  t2.expected = "9\n";
+  cases.push_back(t1);
+  cases.push_back(t2);
+
+  long long created_id = 0;
+  const auto status = oj::services::CreateProblem(
+      "zz_created_problem", "# 求和", oj::models::Difficulty::kMedium, cases,
+      created_id);
+  ASSERT_EQ(oj::services::CreateProblemStatus::kOk, status);
+  ASSERT_GT(created_id, 0);
+  EXPECT_NE(id_, created_id);
+
+  // 题目存在且难度/描述正确。
+  oj::models::Problem p;
+  ASSERT_EQ(oj::services::ProblemQueryStatus::kOk,
+            oj::services::GetProblemById(created_id, p));
+  EXPECT_EQ("zz_created_problem", p.title);
+  EXPECT_EQ("# 求和", p.description);
+  EXPECT_EQ(oj::models::Difficulty::kMedium, p.difficulty);
+
+  // 用例按 order 1..2 写入。
+  std::vector<oj::models::TestCase> out;
+  ASSERT_TRUE(oj::services::ListTestcasesByProblem(created_id, out));
+  ASSERT_EQ(2u, out.size());
+  EXPECT_EQ(1, out[0].order);
+  EXPECT_EQ("1 2\n", out[0].input);
+  EXPECT_EQ("3\n", out[0].expected);
+  EXPECT_EQ(2, out[1].order);
+  EXPECT_EQ("4 5\n", out[1].input);
+  EXPECT_EQ("9\n", out[1].expected);
+
+  // 清理。
+  ASSERT_TRUE(oj::services::DeleteProblem(created_id));
+}
+
+// CreateProblem 参数校验：空标题 / 空用例 / 用例含空字段 → kInvalidInput，不落库。
+TEST_F(ProblemServiceTest, CreateProblemValidatesInput) {
+  std::vector<oj::models::TestCase> one_ok;
+  oj::models::TestCase t;
+  t.input = "1\n";
+  t.expected = "2\n";
+  one_ok.push_back(t);
+
+  long long id = 0;
+  // 空标题
+  EXPECT_EQ(oj::services::CreateProblemStatus::kInvalidInput,
+            oj::services::CreateProblem("", "desc", oj::models::Difficulty::kEasy,
+                                        one_ok, id));
+  // 空描述
+  EXPECT_EQ(oj::services::CreateProblemStatus::kInvalidInput,
+            oj::services::CreateProblem("t", "", oj::models::Difficulty::kEasy,
+                                        one_ok, id));
+  // 空用例列表
+  EXPECT_EQ(oj::services::CreateProblemStatus::kInvalidInput,
+            oj::services::CreateProblem("t", "desc", oj::models::Difficulty::kEasy,
+                                        {}, id));
+  // 用例期望输出为空
+  std::vector<oj::models::TestCase> bad;
+  oj::models::TestCase tb;
+  tb.input = "1\n";
+  tb.expected = "";
+  bad.push_back(tb);
+  EXPECT_EQ(oj::services::CreateProblemStatus::kInvalidInput,
+            oj::services::CreateProblem("t", "desc", oj::models::Difficulty::kEasy,
+                                        bad, id));
+
+  EXPECT_EQ(0, id) << "校验失败不应产生自增 id";
+}
+
+// DeleteProblem 应物理删除题目并级联删除其测试用例（FR-4.3，SPEC 4.3.1）。
+TEST_F(ProblemServiceTest, DeleteProblemCascadesTestcases) {
+  std::vector<oj::models::TestCase> cases;
+  oj::models::TestCase t;
+  t.input = "1\n";
+  t.expected = "1\n";
+  cases.push_back(t);
+
+  long long created_id = 0;
+  ASSERT_EQ(oj::services::CreateProblemStatus::kOk,
+            oj::services::CreateProblem("zz_to_delete", "d",
+                                        oj::models::Difficulty::kEasy, cases,
+                                        created_id));
+  ASSERT_GT(created_id, 0);
+
+  ASSERT_TRUE(oj::services::DeleteProblem(created_id));
+
+  // 题目已不存在。
+  oj::models::Problem p;
+  EXPECT_EQ(oj::services::ProblemQueryStatus::kNotFound,
+            oj::services::GetProblemById(created_id, p));
+
+  // 用例已级联删除。
+  std::vector<oj::models::TestCase> out;
+  ASSERT_TRUE(oj::services::ListTestcasesByProblem(created_id, out));
+  EXPECT_TRUE(out.empty());
+}
+
+// CountProblems 应返回非负值（数据库可用时 ≥ 当前题目数）。
+TEST_F(ProblemServiceTest, CountProblemsNonNegative) {
+  const long long count = oj::services::CountProblems();
+  EXPECT_GE(count, 0);
+}
+
+// UpdateProblem 应整体更新题目字段并替换测试用例（阶段 5 编辑功能）。
+TEST_F(ProblemServiceTest, UpdateProblemModifiesFieldsAndTestcases) {
+  std::vector<oj::models::TestCase> original;
+  oj::models::TestCase t0;
+  t0.input = "1\n";
+  t0.expected = "1\n";
+  original.push_back(t0);
+
+  long long created_id = 0;
+  ASSERT_EQ(oj::services::CreateProblemStatus::kOk,
+            oj::services::CreateProblem("zz_before_edit", "旧描述",
+                                        oj::models::Difficulty::kEasy, original,
+                                        created_id));
+  ASSERT_GT(created_id, 0);
+
+  // 编辑：新标题/描述/难度 + 两组新用例。
+  std::vector<oj::models::TestCase> updated;
+  oj::models::TestCase t1;
+  t1.input = "2 3\n";
+  t1.expected = "5\n";
+  oj::models::TestCase t2;
+  t2.input = "10 20\n";
+  t2.expected = "30\n";
+  updated.push_back(t1);
+  updated.push_back(t2);
+
+  EXPECT_EQ(oj::services::UpdateProblemStatus::kOk,
+            oj::services::UpdateProblem(created_id, "zz_after_edit", "新描述",
+                                        oj::models::Difficulty::kHard, updated));
+
+  // 字段已更新。
+  oj::models::Problem p;
+  ASSERT_EQ(oj::services::ProblemQueryStatus::kOk,
+            oj::services::GetProblemById(created_id, p));
+  EXPECT_EQ("zz_after_edit", p.title);
+  EXPECT_EQ("新描述", p.description);
+  EXPECT_EQ(oj::models::Difficulty::kHard, p.difficulty);
+
+  // 旧用例被整体替换为两组新用例。
+  std::vector<oj::models::TestCase> out;
+  ASSERT_TRUE(oj::services::ListTestcasesByProblem(created_id, out));
+  ASSERT_EQ(2u, out.size());
+  EXPECT_EQ("2 3\n", out[0].input);
+  EXPECT_EQ("5\n", out[0].expected);
+  EXPECT_EQ("10 20\n", out[1].input);
+  EXPECT_EQ("30\n", out[1].expected);
+
+  ASSERT_TRUE(oj::services::DeleteProblem(created_id));
+}
+
+// UpdateProblem 参数校验：空标题 / 空用例 → kInvalidInput，题目保持不变。
+TEST_F(ProblemServiceTest, UpdateProblemValidatesInput) {
+  std::vector<oj::models::TestCase> one_ok;
+  oj::models::TestCase t;
+  t.input = "1\n";
+  t.expected = "2\n";
+  one_ok.push_back(t);
+
+  // 空标题
+  EXPECT_EQ(oj::services::UpdateProblemStatus::kInvalidInput,
+            oj::services::UpdateProblem(id_, "", "desc",
+                                        oj::models::Difficulty::kEasy, one_ok));
+  // 空描述
+  EXPECT_EQ(oj::services::UpdateProblemStatus::kInvalidInput,
+            oj::services::UpdateProblem(id_, "t", "",
+                                        oj::models::Difficulty::kEasy, one_ok));
+  // 空用例列表
+  EXPECT_EQ(oj::services::UpdateProblemStatus::kInvalidInput,
+            oj::services::UpdateProblem(id_, "t", "desc",
+                                        oj::models::Difficulty::kEasy, {}));
+
+  // 原题字段未被修改。
+  oj::models::Problem p;
+  ASSERT_EQ(oj::services::ProblemQueryStatus::kOk,
+            oj::services::GetProblemById(id_, p));
+  EXPECT_EQ(title_, p.title);
+}
+
+// 更新不存在的题目 → kNotFound。
+TEST_F(ProblemServiceTest, UpdateMissingProblemReturnsNotFound) {
+  std::vector<oj::models::TestCase> one_ok;
+  oj::models::TestCase t;
+  t.input = "1\n";
+  t.expected = "2\n";
+  one_ok.push_back(t);
+
+  EXPECT_EQ(oj::services::UpdateProblemStatus::kNotFound,
+            oj::services::UpdateProblem(static_cast<long long>(-1), "t", "d",
+                                        oj::models::Difficulty::kEasy, one_ok));
+}
+
 }  // namespace

@@ -28,6 +28,13 @@ class PreparedStatement {
   // 构造即 prepare。conn 必须有效（Acquire() 成功）；prepare 失败时
   // PrepareOk() 返回 false，Error() 给出原因（SQL 错误 / 表不存在等）。
   PreparedStatement(PooledConnection conn, const std::string& sql);
+
+  // 借用连接模式（事务用）：在同一已占用的 MYSQL* 连接上执行多条语句
+  // （BEGIN / INSERT... / COMMIT 必须在同一连接上完成）。raw 必须有效且
+  // 存活时间覆盖语句生命周期；此构造不持有连接，析构时不会归还连接池。
+  // prepare 失败时 PrepareOk() 返回 false，Error() 给出原因。
+  PreparedStatement(MYSQL* raw, const std::string& sql);
+
   ~PreparedStatement();
 
   PreparedStatement(const PreparedStatement&) = delete;

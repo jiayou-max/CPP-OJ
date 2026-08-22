@@ -1,8 +1,14 @@
 <div class="judge-result">
   <h1>判题结果</h1>
   <div class="result-banner result-{{status_name}}">
-    <span class="result-status">{{status_label}}</span>
-    <span class="result-stats">用时 {{time_ms}} ms · 内存 {{memory_kb}} KB</span>
+    <div class="result-status-line">
+      <span class="status-icon">{{status_icon}}</span>
+      <span class="result-status">{{status_label}}</span>
+    </div>
+    <span class="result-stats">
+      <span class="stat-chip">{{time_icon}} {{time_ms}} ms</span>
+      <span class="stat-chip">{{mem_icon}} {{memory_kb}} KB</span>
+    </span>
   </div>
   {{compile_log_html}}
   <h2>逐用例结果</h2>

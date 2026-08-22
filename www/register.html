@@ -1,12 +1,22 @@
-<div class="auth-panel">
-  <h1>注册</h1>
-  {{error_html}}
-  <form action="/register" method="post" class="auth-form">
-    <label for="username">用户名</label>
-    <input type="text" id="username" name="username" maxlength="64" autocomplete="username" required>
-    <label for="password">密码（6~64 位）</label>
-    <input type="password" id="password" name="password" maxlength="64" minlength="6" autocomplete="new-password" required>
-    <button type="submit" class="btn btn-primary btn-block">注册</button>
-  </form>
-  <p class="auth-alt">已有账号？<a href="/login">去登录</a></p>
+<div class="auth-wrap">
+  <div class="auth-panel">
+    <h1>注册</h1>
+    {{error_html}}
+    <form action="/register" method="post" class="auth-form">
+      <label for="username">用户名</label>
+      <input type="text" id="username" name="username" maxlength="64" autocomplete="username" required>
+      <small class="field-hint">仅允许字母、数字、下划线，长度 1~64 位；创建后作为登录账号。</small>
+
+      <label for="password">密码（6~64 位）</label>
+      <input type="password" id="password" name="password" maxlength="64" minlength="6" autocomplete="new-password" required>
+      <small class="field-hint">建议使用字母 + 数字组合，请勿使用纯数字或生日等弱密码。</small>
+
+      <label for="password2">再次输入确认密码</label>
+      <input type="password" id="password2" name="password2" maxlength="64" minlength="6" autocomplete="new-password" required>
+      <small class="field-hint">请与上方密码保持一致，避免输入错误导致注册失败。</small>
+
+      <button type="submit" class="btn btn-primary btn-block" style="margin-top:22px">注册</button>
+    </form>
+    <p class="auth-alt">已有账号？<a href="/login">去登录</a></p>
+  </div>
 </div>

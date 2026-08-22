@@ -45,4 +45,23 @@ bool CreateSubmission(const oj::models::Submission& submission) {
   return true;
 }
 
+long long CountSubmissions() {
+  oj::db::ConnectionPool* pool = oj::db::DbPool();
+  if (pool == nullptr) {
+    return -1;
+  }
+  auto conn = pool->Acquire();
+  if (!conn) {
+    return -1;
+  }
+
+  oj::db::PreparedStatement stmt(std::move(conn),
+                                 "SELECT COUNT(*) FROM submissions");
+  if (!stmt.PrepareOk() || !stmt.Execute() || !stmt.Fetch()) {
+    LogError("submission_service: 统计提交数失败");
+    return -1;
+  }
+  return std::stoll(stmt.GetString(0));
+}
+
 }  // namespace oj::services

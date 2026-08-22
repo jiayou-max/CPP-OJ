@@ -3,22 +3,33 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#05070f">
   <title>{{title}}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
   <header class="navbar">
     <div class="container navbar-inner">
-      <a class="navbar-brand" href="/problems">CPP OJ</a>
+      <a class="navbar-brand" href="/">
+        <span class="brand-mark">&lt;/&gt;</span>
+        <span class="brand-text">CPP<span class="brand-accent">OJ</span></span>
+      </a>
       <nav class="navbar-links">
         <a href="/problems">题库</a>
+        <a href="/">首页</a>
         {{nav_links}}
       </nav>
     </div>
   </header>
   <main class="container">{{body}}</main>
   <footer class="footer">
-    <div class="container">cpp-oj · 仿 LeetCode 在线评测系统</div>
+    <div class="container">
+      <span>cpp-oj · 仿 LeetCode 在线评测系统</span>
+      <span class="footer-meta">C++ / cpp-httplib / MySQL / g++</span>
+    </div>
   </footer>
 </body>
 </html>

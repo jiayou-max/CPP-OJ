@@ -51,7 +51,8 @@ TEST(RenderLayout, ContainsStylesheetLink) {
 // Layout() 必须包含顶部导航：品牌名 + 题库/登录/注册链接（阶段 2 起全站导航）。
 TEST(RenderLayout, ContainsNavbar) {
   const std::string html = oj::views::Layout("t", "b");
-  EXPECT_NE(std::string::npos, html.find("CPP OJ"));
+  EXPECT_NE(std::string::npos, html.find("class=\"navbar-brand\""));
+  EXPECT_NE(std::string::npos, html.find("brand-mark"));
   EXPECT_NE(std::string::npos, html.find("href=\"/problems\">题库</a>"));
   EXPECT_NE(std::string::npos, html.find("href=\"/login\">登录</a>"));
   EXPECT_NE(std::string::npos, html.find("href=\"/register\">注册</a>"));
