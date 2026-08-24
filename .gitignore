@@ -40,3 +40,6 @@ oj_error.log
 src/test/python/__pycache__
 
 .opencode
+
+console-*
+page-*
