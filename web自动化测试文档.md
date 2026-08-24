@@ -242,7 +242,8 @@ export async function setAceCode(page: Page, code: string) {
 | W-AUTH-08 | 已登录访问登录/注册页重定向 | 中 | 路由约定 |
 | W-AUTH-09 | 登出成功并清会话 | 高 | FR-1.1 |
 
-> 每个用例的用户名使用 `web_<时间戳>` 动态生成，避免重复运行冲突。
+> 每个用例的用户名使用 `web_<唯一后缀>`（毫秒时间戳 + 随机数，见 §6.2 `ts()`）动态生成，
+> 保证多次运行 / 用例重试均不冲突。
 
 #### W-AUTH-01 注册成功并自动登录
 - **步骤**：
@@ -397,7 +398,9 @@ export async function setAceCode(page: Page, code: string) {
 | W-ADMIN-10 | 新增/编辑表单用例动态增删 | 中 | FR-4.2 |
 
 > 管理用例统一以 `admin` / `admin123` 登录。测试创建的题目标题使用
-> `webadmin_{ts}` 前缀，删除类用例自建自删，避免污染题库。
+> `webadmin_*_<唯一后缀>` 前缀（各用例前缀互不相同），删除类用例自建自删；
+> `beforeAll` 会先清理历史遗留的 `webadmin` 测试题目（上次中断残留），避免污染题库、
+> 保证用例可重复运行。
 
 #### W-ADMIN-01 游客访问管理后台重定向登录
 - **步骤**：未登录直接访问 `GET /admin/problems`。
@@ -476,9 +479,9 @@ export async function setAceCode(page: Page, code: string) {
 
 #### W-ERR-02 输入 HTML 转义防 XSS
 - **步骤**：
-  1. admin 新增题目，标题填 `<script>alert('xss')</script>`，描述填含 `<img onerror=...>` 的 Markdown。
+  1. admin 新增题目，标题填 `<script>alert('xss<唯一后缀>')</script>`（带唯一后缀防止重跑冲突，见 §6.8），描述填含 `<img onerror=...>` 的 Markdown。
   2. 查看管理列表、题库列表、题目详情页。
-- **预期**：页面中以**文本**显示原样尖括号，`.problem-title`/标题处无 `script` 元素被执行；浏览器无 `alert` 弹出（NFR-3 输出转义）。检查后删除该题。
+- **预期**：页面中以**文本**显示原样尖括号，`.problem-title`/标题处无 `script` 元素被执行；浏览器无 `alert` 弹出（NFR-3 输出转义）。检查后删除该题（含历史残留的全部 `<script>` 题）。
 
 #### W-ERR-03 会话 Cookie HttpOnly
 - **步骤**：登录成功后，用 `page.evaluate(() => document.cookie)` 读取 Cookie。
@@ -575,7 +578,9 @@ export const ADMIN_PASS = 'admin123';
 export const JUDGE_PROBLEM_ID = 5;   // 有测试用例的判题用题
 export const NO_TC_PROBLEM_ID = 6;   // 无测试用例的题
 
-export const ts = () => String(Math.floor(Date.now() / 1000));
+// 唯一后缀：毫秒时间戳 + 随机数。每次调用均不同，保证多次运行 / 并行 worker /
+// 用例重试 / 同一秒内多个用例都不会产生重复的用户名或题目标题。
+export const ts = () => `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
 
 export async function register(page: Page, username: string, password = 'secret123') {
   await page.goto('/register');
@@ -617,6 +622,20 @@ export async function submitProblem(page: Page, problemId: number, code: string,
 
 export async function resultStatus(page: Page) {
   return (await page.locator('.result-status').textContent())!.trim();
+}
+
+// 清理管理后台历史遗留的测试题目（上次运行中断残留），保证用例可重复运行。
+// 调用前需已登录 admin；titlePart 为标题文本片段（如 'webadmin' 或 "alert('xss"）。
+export async function cleanupTestProblems(page: Page, titlePart = 'webadmin') {
+  await page.goto('/admin/problems');
+  for (let i = 0; i < 200; i++) {
+    const rows = page.locator('table.problem-table tbody tr', { hasText: titlePart });
+    if ((await rows.count()) === 0) break;
+    const pid = (await rows.first().locator('.col-id').textContent())!.trim();
+    page.once('dialog', (d) => d.accept());
+    await page.locator(`form.admin-delete[action*='/${pid}/delete'] button`).click();
+    await page.waitForURL(/\/admin\/problems/);
+  }
 }
 ```
 
@@ -911,11 +930,20 @@ test('W-JUDGE-11 题目无用例判题不可用 500', async ({ page }) => {
 
 ```ts
 import { test, expect, Page } from '@playwright/test';
-import { register, login, ts, ADMIN_USER, ADMIN_PASS } from './helpers';
+import { register, login, ts, ADMIN_USER, ADMIN_PASS, cleanupTestProblems } from './helpers';
 
 async function adminLogin(page: Page) {
   await login(page, ADMIN_USER, ADMIN_PASS);
 }
+
+test.beforeAll(async ({ browser }) => {
+  // 清理历史遗留的 webadmin 测试题目（上次运行中断残留），保证用例可重复运行
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  await login(page, ADMIN_USER, ADMIN_PASS);
+  await cleanupTestProblems(page);
+  await ctx.close();
+});
 
 async function createProblem(page: Page, title: string, difficulty = 'medium', nCases = 2) {
   await page.goto('/admin/problems/new');
@@ -965,7 +993,7 @@ test('W-ADMIN-04 admin 进入管理后台列表', async ({ page }) => {
 
 test('W-ADMIN-05 新增题目（含多组用例）', async ({ page }) => {
   await adminLogin(page);
-  const title = `webadmin_${ts()}`;
+  const title = `webadmin_c_${ts()}`;
   await createProblem(page, title);
   const row = page.locator('table.problem-table tbody tr', { hasText: title });
   await expect(row).toHaveCount(1);
@@ -982,7 +1010,7 @@ test('W-ADMIN-06 新增题目校验失败不落库', async ({ page }) => {
 
 test('W-ADMIN-07 编辑题目预填与保存', async ({ page }) => {
   await adminLogin(page);
-  const title = `webadmin_${ts()}`;
+  const title = `webadmin_e_${ts()}`;
   await createProblem(page, title);
   const pid = await findIdByTitle(page, title);
   await page.goto(`/admin/problems/${pid}/edit`);
@@ -1038,7 +1066,7 @@ test('W-ADMIN-10 新增表单用例动态增删', async ({ page }) => {
 
 ```ts
 import { test, expect } from '@playwright/test';
-import { login, ADMIN_USER, ADMIN_PASS } from './helpers';
+import { login, ts, ADMIN_USER, ADMIN_PASS, cleanupTestProblems } from './helpers';
 
 test('W-ERR-01 未匹配路由 404', async ({ page }) => {
   await page.goto('/does-not-exist');
@@ -1048,7 +1076,8 @@ test('W-ERR-01 未匹配路由 404', async ({ page }) => {
 
 test('W-ERR-02 输入 HTML 转义防 XSS', async ({ page }) => {
   await login(page, ADMIN_USER, ADMIN_PASS);
-  const xssTitle = `<script>alert('xss')</script>`;
+  // 标题含唯一后缀，避免上次运行中断残留的同名题导致 toHaveCount(1) 失败
+  const xssTitle = `<script>alert('xss${ts()}')</script>`;
   await page.goto('/admin/problems/new');
   await page.locator('#title').fill(xssTitle);
   await page.locator('#description').fill('desc <img src=x onerror=alert(1)>');
@@ -1056,16 +1085,14 @@ test('W-ERR-02 输入 HTML 转义防 XSS', async ({ page }) => {
   await page.waitForURL(/\/admin\/problems/);
   // 列表中以文本显示原样尖括号，未被当作 HTML 执行
   await expect(page.locator('table.problem-table')).toContainText('<script>');
-  // 详情页同样转义
-  const link = page.locator('a.problem-title', { hasText: '<script>' });
+  // 详情页同样转义（按唯一标题精确定位，历史残留的同名题不干扰断言）
+  const link = page.locator('a.problem-title', { hasText: xssTitle });
   await expect(link).toHaveCount(1);
   const pid = (await link.first().getAttribute('href'))!.split('/').pop();
   await page.goto(`/problems/${pid}`);
   await expect(page.locator('.markdown-body')).toContainText('<script>');
-  // 清理：删除该题
-  await page.goto('/admin/problems');
-  page.once('dialog', (d) => d.accept());
-  await page.locator(`form.admin-delete[action*='/${pid}/delete'] button`).click();
+  // 清理：删除本用例及历史残留的所有 XSS 测试题（自建自删，保证可重复运行）
+  await cleanupTestProblems(page, "alert('xss");
 });
 
 test('W-ERR-03 会话 Cookie HttpOnly', async ({ page }) => {
@@ -1128,10 +1155,13 @@ npx playwright codegen 127.0.0.1:8080    # 录制辅助生成/补充用例
 
 ## 7. 测试数据准备与清理
 
-- **自动生成**：注册类用例用户名为 `web/webdup/loginok/..._<时间戳>`；管理类用例题目为
-  `webadmin_<时间戳>`。重复执行互不冲突。
-- **清理**：删除类用例自建自删；注册用户、判题提交（`submissions`）为累积数据，
-  如需干净环境可手动清理：
+- **自动生成**：注册类用例用户名为 `web/webdup/loginok/..._<毫秒时间戳>-<随机数>`；
+  管理类用例题目为 `webadmin_*_<毫秒时间戳>-<随机数>`。`ts()` 每次调用返回不同唯一后缀，
+  多次运行 / 并行 worker / 用例重试均不冲突。
+- **自清理**：删除类用例自建自删；`admin.spec.ts` 在 `beforeAll` 自动清理历史遗留的
+  `webadmin` 题目；`W-ERR-02` 结束后清理全部 `<script>` XSS 测试题。即使上次运行中断，
+  残留数据也不会阻塞后续运行。
+- **兜底清理**：注册用户、判题提交（`submissions`）为累积数据，如需干净环境可手动清理：
 
   ```sql
   USE cpp_oj;
@@ -1170,3 +1200,7 @@ npx playwright codegen 127.0.0.1:8080    # 录制辅助生成/补充用例
 8. **Playwright CLI 相关**：`npx playwright codegen` 可录制真实操作辅助快速补用例；
    失败用例会保留 trace/screenshot（见 `playwright.config.ts`），可用
    `npx playwright show-trace` 回放定位。
+9. **重复运行友好（幂等）**：本套用例所有写入数据（用户名 / 题目标题）均带唯一后缀
+   `ts()`（毫秒时间戳 + 随机数）；管理用例 `beforeAll` 自动清理历史 `webadmin` 残留，
+   `W-ERR-02` 自建自删且清理全部 XSS 题。因此多次连续运行 / 上次运行中断后的重跑，
+   结果均能稳定通过，无需每次人工清库。
