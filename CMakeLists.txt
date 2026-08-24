@@ -131,6 +131,20 @@ target_link_libraries(oj_init_admin PRIVATE
   PkgConfig::MYSQLCLIENT
   OpenSSL::Crypto)
 
+# ---------- 目标: oj_db_reset（自动化测试基线数据重置工具，见 db/reset_db.cpp） ----------
+# 仅依赖 logger/db/password 三个最小源，不拖入 HTTP/渲染层。
+set(OJ_DB_RESET_SOURCES
+  db/reset_db.cpp
+  src/logger.cpp
+  src/db/db.cpp
+  src/auth/password.cpp
+)
+add_executable(oj_db_reset ${OJ_DB_RESET_SOURCES})
+target_include_directories(oj_db_reset PRIVATE src)
+target_link_libraries(oj_db_reset PRIVATE
+  PkgConfig::MYSQLCLIENT
+  OpenSSL::Crypto)
+
 # ---------- 单元测试 (gtest, src/test/) ----------
 option(OJ_BUILD_TESTS "构建单元测试" ON)
 if(OJ_BUILD_TESTS)

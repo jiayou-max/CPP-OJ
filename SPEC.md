@@ -339,7 +339,9 @@ cpp-oj-vibe-coding/
 │
 ├── db/
 │   ├── schema.sql                    # 建表脚本（users/problems/testcases/submissions）
-│   └── init_admin.cpp                # 初始化内置 admin 账号（随机盐 + sha256，CMake 目标 oj_init_admin）
+│   ├── init_admin.cpp                # 初始化内置 admin 账号（随机盐 + sha256，CMake 目标 oj_init_admin）
+│   └── reset_db.cpp                  # 数据库重置工具：清自动化测试残留，构造接口自动化基线数据
+│                                     #（admin + 题 5 两数之和 2 用例 + 题 6 0 用例，CMake 目标 oj_db_reset）
 │
 ├── docs/
 │   └── deployment.md                 # 部署说明（nobody 用户、setuid、MySQL 初始化）

@@ -50,6 +50,9 @@ cmake --build build
 产物：
 - `build/oj_server` — HTTP 服务
 - `build/oj_init_admin` — 内置管理员初始化工具（阶段 1）
+- `build/oj_db_reset` — 数据库重置工具：清理自动化测试残留数据，并构造接口自动化基线数据
+  （管理员 + 题 5「两数之和」2 组用例 + 题 6「最长回文子串」0 组用例，对应
+  [接口自动化测试文档.md](./接口自动化测试文档.md) / [web自动化测试文档.md](./web自动化测试文档.md)）
 - `build/oj_tests` — 单元测试（gtest，可用 `-DOJ_BUILD_TESTS=OFF` 关闭）
 
 ## 数据库初始化
@@ -62,6 +65,12 @@ mysql -uroot < db/schema.sql
 ./build/oj_init_admin admin '你的密码'
 #    或 ./build/oj_init_admin '你的密码'（用户名默认 admin）
 #    或 OJ_ADMIN_USER=admin OJ_ADMIN_PASSWORD='你的密码' ./build/oj_init_admin
+
+# 3) （可选）重置到接口自动化基线：清理测试残留（submissions/测试用户/测试题），
+#    构造必需数据（管理员 admin/admin123 + 题 5「两数之和」2 组用例 + 题 6 0 组用例）
+./build/oj_db_reset
+#    或 ./build/oj_db_reset admin '你的密码'（自定义管理员密码）
+#    或 ./build/oj_db_reset --dry-run（仅预演，不实际执行）
 ```
 
 > 非默认 MySQL（非 root 免密 / 非 localhost:3306）可用环境变量覆盖：
