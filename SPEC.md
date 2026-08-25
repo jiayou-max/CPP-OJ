@@ -270,14 +270,20 @@ POST /problems/{id}/submit (登录后)
 
 ```
 cpp-oj-vibe-coding/
-├── CMakeLists.txt                    # 构建脚本（cpp-httplib 头文件 + md4c 源 + 源码）
+├── CMakeLists.txt                    # 构建脚本（目标：oj_server / oj_init_admin / oj_db_reset / oj_tests）
 ├── README.md                         # 项目介绍 / 快速开始 / 文档导航
 ├── SPEC.md                           # 本规格文档
+├── API.md                            # HTTP 接口文档（路由表 / 请求 / 响应）
 ├── DEPLOY.md                         # 部署文档（构建/初始化/启动/判题降权/排查）
-├── .gitignore
+├── dependence.md                     # 依赖清单与逐项安装验证
+├── 接口自动化测试文档.md              # 接口自动化测试说明（脚本 src/test/python/test_api.py）
+├── web自动化测试文档.md              # 浏览器端到端手动验收文档（M1~M7）
+├── web自动化测试文档-playwright.md   # Playwright 端到端自动化测试文档
+├── .gitignore                        # 忽略 build/、oj_error.log、__pycache__ 等
 │
 ├── src/
-│   ├── main.cpp                      # 入口：启动自检、路由注册、HTTP 服务
+│   ├── main.cpp                      # 入口：启动自检、HTTP 服务装配
+│   ├── routes.h|.cpp                 # 路由注册与分发（整页刷新 SSR）
 │   ├── config.h                      # 全局配置：端口 / DB / 限流 / rlimit 参数
 │   ├── logger.h|.cpp                 # 基础日志（控制台 + 错误文件）
 │   ├── http_utils.h|.cpp             # 表单解析、HTML 转义、参数校验
@@ -313,13 +319,20 @@ cpp-oj-vibe-coding/
 │   ├── views/                        # SSR 页面渲染（读 www/ 模板 + 填充数据）
 │   │   ├── render.h|.cpp             # 页面骨架：读 layout.html，填 {{title}}/{{body}}
 │   │   ├── template.h|.cpp           # www/ 模板加载 + {{key}} 占位符替换
-│   │   ├── problem_pages.cpp         # /problems 列表 + 详情页
-│   │   ├── auth_pages.cpp            # /login / /register
-│   │   ├── admin_pages.cpp           # /admin/problems 管理页
-│   │   ├── result_pages.cpp          # 判题结果页（总体 + 逐用例 + 统计）
-│   │   └── error_pages.cpp           # 404 / 403 / 500
+│   │   ├── problem_pages.h|.cpp      # /problems 列表 + 详情页
+│   │   ├── auth_pages.h|.cpp         # /login / /register
+│   │   ├── admin_pages.h|.cpp        # /admin/problems 管理页
+│   │   ├── result_pages.h|.cpp       # 判题结果页（总体 + 逐用例 + 统计）
+│   │   └── error_pages.h|.cpp        # 404 / 403 / 500
 │   │
-│   └── test/                         # 单元测试（gtest）：render_test / routes_test
+│   └── test/                         # 单元测试（gtest，目标 oj_tests）+ 接口自动化
+│       ├── render_test.cpp / template_test.cpp / routes_test.cpp
+│       ├── markdown_test.cpp / logger_test.cpp / db_test.cpp
+│       ├── password_test.cpp / session_test.cpp / middleware_test.cpp
+│       ├── user_service_test.cpp / problem_service_test.cpp
+│       ├── compiler_test.cpp / runner_test.cpp / judge_test.cpp
+│       └── python/
+│           └── test_api.py           # 接口自动化测试脚本（对应 接口自动化测试文档.md）
 │
 ├── third_party/
 │   └── httplib.h                     # cpp-httplib v0.10.3 纯 header-only（vendored）
@@ -341,16 +354,14 @@ cpp-oj-vibe-coding/
 ├── db/
 │   ├── schema.sql                    # 建表脚本（users/problems/testcases/submissions）
 │   ├── init_admin.cpp                # 初始化内置 admin 账号（随机盐 + sha256，CMake 目标 oj_init_admin）
-│   └── reset_db.cpp                  # 数据库重置工具：清自动化测试残留，构造接口自动化基线数据
-│                                     #（admin + 题 5 两数之和 2 用例 + 题 6 0 用例，CMake 目标 oj_db_reset）
+│   └── reset_db.cpp                  # 数据库重置工具（CMake 目标 oj_db_reset）：清自动化测试残留，
+│                                     # 构造接口自动化基线数据（admin + 题 5 两数之和 2 用例 + 题 6 0 用例）
 │
-├── docs/
-│   └── deployment.md                 # 部署说明（nobody 用户、setuid、MySQL 初始化）
-│
-└── tests/                            # 可选：判题内核自测脚本（AC/WA/TLE/... 样例）
+└── docs/
+    └── deployment.md                 # 部署说明（nobody 用户、setuid、MySQL 初始化）
 ```
 
-> 分层原则：`main` 只做装配与路由分发 → `services` 持有业务逻辑（含 SQL）→ `models` 仅承载数据行；`judge` 独立于 HTTP 层，便于后续异步化改造。
+> 分层原则：`main` 只做装配与启动自检 → `routes` 负责路由分发 → `services` 持有业务逻辑（含 SQL）→ `models` 仅承载数据行；`judge` 独立于 HTTP 层，便于后续异步化改造。
 
 ---
 
