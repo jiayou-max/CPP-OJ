@@ -43,3 +43,5 @@ src/test/python/__pycache__
 
 console-*
 page-*
+
+playwright-js/
