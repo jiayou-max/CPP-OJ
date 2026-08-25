@@ -271,8 +271,9 @@ POST /problems/{id}/submit (登录后)
 ```
 cpp-oj-vibe-coding/
 ├── CMakeLists.txt                    # 构建脚本（cpp-httplib 头文件 + md4c 源 + 源码）
-├── README.md                         # 构建 / 初始化 / 启动 / 部署说明
+├── README.md                         # 项目介绍 / 快速开始 / 文档导航
 ├── SPEC.md                           # 本规格文档
+├── DEPLOY.md                         # 部署文档（构建/初始化/启动/判题降权/排查）
 ├── .gitignore
 │
 ├── src/
@@ -433,10 +434,10 @@ cpp-oj-vibe-coding/
 - [X] 题目详情页接入 ace.js（vendored 于 `www/js/ace/`）代码编辑器，语法高亮 + Ctrl+Enter 提交
 
 ### 阶段 6：收尾
-- [ ] 权限校验（require_admin）
-- [ ] 启动自检（g++、nobody、MySQL 可用性）
-- [ ] 端到端手动验收（对照第 8 节）
-- [ ] README：构建、初始化、启动、部署说明
+- [X] 权限校验（require_admin）
+- [X] 启动自检（g++、nobody、MySQL 可用性）
+- [X] 端到端手动验收（对照第 8 节，见 web自动化测试文档-playwright.md M1~M7）
+- [X] README / DEPLOY：构建、初始化、启动、部署说明
 
 ---
 
@@ -557,6 +558,7 @@ ctest --test-dir build --output-on-failure
 ├── third_party/httplib.h     # cpp-httplib v0.10.3 (vendored, header-only)
 ├── www/                      # 前端模板 + 静态资源（SSR 模板、css）
 ├── db/                       # 建表脚本与初始化
+├── DEPLOY.md                 # 部署文档
 ├── docs/                     # 文档
 └── tests/                    # 判题内核自测脚本（可选）
 ```
