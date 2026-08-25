@@ -726,7 +726,125 @@ playwright-cli --raw eval "JSON.stringify({groups: document.querySelectorAll('.t
 
 ---
 
-## 7. 后续模块（M6~M7）执行提示
+## 7. M6 异常路径与安全（4.6，已实测 4/4 通过）
+
+> **环境备注**：本机 MySQL(3307) 为 WSL 内 `wuhu` 用户独立实例（datadir
+> `/tmp/opencode/mysql-data`，非系统 mysql 服务）；`oj_server` 同样跑在 WSL（cwd
+> `build/`），8080 端口由 `wslrelay` 转发到 Windows。因此 W-ERR-04 停库/重启都在
+> WSL 内完成（root 免密，3307 实例可直接 `mysqladmin shutdown`）。
+
+### 7.1 W-ERR-01 未匹配路由 404 ✅
+
+```powershell
+playwright-cli goto http://127.0.0.1:8080/does-not-exist; Start-Sleep -Seconds 1
+playwright-cli --raw eval "JSON.stringify({title: document.title, code: document.querySelector('h1.error-code')?.textContent.trim(), h2: document.querySelector('h2')?.textContent.trim(), msg: document.querySelector('.error-page p')?.textContent.trim()})"
+# 实测：{"title":"404 - CPP OJ","code":"404","h2":"页面不存在","msg":"Not Found"}
+```
+
+### 7.2 W-ERR-03 会话 Cookie HttpOnly ✅
+
+```powershell
+playwright-cli goto http://127.0.0.1:8080/login; Start-Sleep -Seconds 1
+playwright-cli fill "#username" "admin"; Start-Sleep -Seconds 1
+playwright-cli fill "#password" "admin123"; Start-Sleep -Seconds 1
+playwright-cli click "form.auth-form button[type=submit]"; Start-Sleep -Seconds 1
+playwright-cli --raw eval "JSON.stringify({docCookie: document.cookie, hasOjSession: document.cookie.includes('oj_session')})"
+# 实测：{"docCookie":"","hasOjSession":false} → oj_session 不可被 JS 读取（HttpOnly）
+```
+
+响应头校验（curl 看 `Set-Cookie`）：
+
+```powershell
+curl.exe -s -D - -o NUL -X POST http://127.0.0.1:8080/login -d "username=admin&password=admin123" | Select-String "Set-Cookie"
+# 实测：Set-Cookie: oj_session=<token>; Path=/; HttpOnly; SameSite=Lax（无 Secure，NFR-5 符合预期）
+```
+
+### 7.3 W-ERR-02 输入 HTML 转义防 XSS ✅（2026-08-25 修复后复验）
+
+> **修复确认**：`src/markdown/md.cpp` 的 `md_html()` 解析参数增加 `MD_FLAG_NOHTML`
+> （md4c 将 raw HTML 按普通文本转义输出），随后**重建并重启 `oj_server`** 生效。
+> 修复前：描述 `<img onerror>` 原样透传真实执行；修复后：`&lt;img...&gt;` 以纯文本显示。
+
+创建含 `<script>` 标题 + `<img onerror>` 描述的题目（带唯一后缀，2 组用例填满，实测 id=197）：
+
+```powershell
+playwright-cli goto http://127.0.0.1:8080/admin/problems/new; Start-Sleep -Seconds 1
+playwright-cli fill "#title" "<script>alert('xss20260825133845433')</script>"; Start-Sleep -Seconds 1
+playwright-cli fill "#description" "desc <img src=x onerror=alert(1)>"; Start-Sleep -Seconds 1
+playwright-cli fill "#tc-list .tc-group:nth-child(1) textarea[name='input[]']" "1"; Start-Sleep -Seconds 1
+playwright-cli fill "#tc-list .tc-group:nth-child(1) textarea[name='expected[]']" "1"; Start-Sleep -Seconds 1
+playwright-cli fill "#tc-list .tc-group:nth-child(2) textarea[name='input[]']" "2"; Start-Sleep -Seconds 1
+playwright-cli fill "#tc-list .tc-group:nth-child(2) textarea[name='expected[]']" "2"; Start-Sleep -Seconds 1
+playwright-cli click "form.admin-form button[type=submit]"; Start-Sleep -Seconds 1
+```
+
+**标题转义：通过**（管理列表 / 题库列表 / 详情页 h1 均以文本显示原样尖括号，无 `script` 元素执行）：
+
+```powershell
+# 管理列表：scriptEls=0, imgEls=0, hasScriptText=true（table 文本含 '<script>'）
+# 题库列表：scriptEls=0, link197 存在且文本含 '<script>'
+# 详情页 h1：h1ScriptEls=0, h1Text="<script>alert('xss20260825135905919')</script>"
+# 页面 <script> 均为合法资源（ace.min.js/mode/theme + 内联脚本），无注入脚本
+```
+
+**描述字段：修复后以纯文本转义显示 ✅**（`MD_FLAG_NOHTML` 生效）：
+
+```powershell
+playwright-cli --raw eval "JSON.stringify({mdScriptEls: document.querySelectorAll('.markdown-body script').length, mdImgEls: document.querySelectorAll('.markdown-body img').length, mdHtml: document.querySelector('.markdown-body')?.innerHTML.slice(0,200), mdText: document.querySelector('.markdown-body')?.textContent.trim()})"
+# 实测：mdScriptEls=0, mdImgEls=0,
+#       mdHtml="<p>desc &lt;img src=x onerror=alert(1)&gt;</p>",   ← raw HTML 已转义为纯文本
+#       mdText="desc <img src=x onerror=alert(1)>"
+playwright-cli console
+# 实测：Total messages: 0（无 /problems/x 加载、无 alert 弹出）
+```
+> **修复方案**：`src/markdown/md.cpp` 的 `md_html()` 解析参数增加 `MD_FLAG_NOHTML`
+> （md4c 对 raw HTML 按普通文本转义输出），重建 `oj_server` 并重启后生效。已验证
+> 标题与描述均无注入元素执行、浏览器无 alert。
+
+测试题已自建自删（删除 id=197 后题库恢复题 5/6）。
+
+### 7.4 W-ERR-04 MySQL 不可用时 500 ✅
+
+```powershell
+# ① 停库（WSL 内 3307 独立实例，root 免密）
+wsl bash -lc "mysqladmin -uroot -h127.0.0.1 -P3307 --connect-timeout=5 shutdown"
+# 确认：WSL/Windows 3307 监听均已消失（ss/Get-NetTCPConnection 无监听）
+
+# ② 停库后访问题库 → 500
+playwright-cli goto http://127.0.0.1:8080/problems; Start-Sleep -Seconds 1
+# 实测：title=500 - CPP OJ, h1.error-code=500, h2=服务器内部错误,
+#       msg=数据库暂不可用，请稍后重试。
+
+# ③ 恢复 MySQL（与原启动命令一致；datadir 在 /tmp/opencode/mysql-data）
+wsl bash -lc "mkdir -p /tmp/opencode/mysql-run && setsid nohup mysqld --no-defaults --datadir=/tmp/opencode/mysql-data --socket=/tmp/opencode/mysql-run/mysqld.sock --port=3307 --bind-address=127.0.0.1 --pid-file=/tmp/opencode/mysql-run/mysqld.pid --log-error=/tmp/opencode/mysql-run/run.log --mysqlx=0 >/dev/null 2>&1 < /dev/null &"
+# 等待约 20s（InnoDB 初始化）后 ss 可见 127.0.0.1:3307 LISTEN
+
+# ④ 恢复后服务自动恢复
+playwright-cli goto http://127.0.0.1:8080/problems; Start-Sleep -Seconds 1
+# 实测：题库 - CPP OJ，「共 2 题」（无需重启即自动恢复）
+
+# ⑤ 按文档重启 oj_server（会话内存存储，重启即失效）
+wsl bash -lc "cd /home/wuhu/Ubuntu_WORKSPACE/cpp-oj-vibe-coding/build && kill 3523 2>/dev/null; sleep 1; setsid nohup ./oj_server >> /tmp/oj_server.log 2>&1 < /dev/null & sleep 3; ss -tlnp 2>/dev/null | grep 8080"
+# 实测：0.0.0.0:8080 LISTEN（新 pid 5412）
+playwright-cli goto http://127.0.0.1:8080/problems; Start-Sleep -Seconds 1
+# 实测：题库正常；导航恢复未登录态（navbar-user 消失，出现「登录」）→ 会话已失效
+```
+
+### 7.5 实测结果汇总（2026-08-25）
+
+| 用例 | 结论 | 备注 |
+|------|------|------|
+| W-ERR-01 | ✅ 通过 | `/does-not-exist` → 404「页面不存在」 |
+| W-ERR-02 | ✅ 通过 | 修复后复验：标题/描述均转义，`<img onerror>` 以纯文本显示，无元素执行/alert |
+| W-ERR-03 | ✅ 通过 | `document.cookie` 不含 oj_session；Set-Cookie 含 `HttpOnly; SameSite=Lax; Path=/` 无 Secure |
+| W-ERR-04 | ✅ 通过 | 停库 → 500「服务器内部错误」；恢复后自动恢复；重启 oj_server 后会话失效 |
+
+> 历史：W-ERR-02 修复前为 ❌（描述字段 raw HTML 透传可注入 `<img onerror>`），
+> 经 `MD_FLAG_NOHTML` 修复并重建重启服务后复验通过，详见 7.3。
+
+---
+
+## 8. 后续模块（M7 并发安全）执行提示
 
 - 沿用 §1 的启动方式与定位/取值约定；
 - 命令映射见 [web自动化测试文档.md](./web自动化测试文档.md) §3.2 选择器速查表；
