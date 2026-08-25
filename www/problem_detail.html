@@ -52,7 +52,10 @@
   editor.commands.addCommand({
     name: "submit",
     bindKey: { win: "Ctrl-Enter", mac: "Command-Enter" },
-    exec: function () { form.submit(); }
+    exec: function () {
+      ta.value = editor.getValue();
+      form.submit();
+    }
   });
 })();
 </script>
