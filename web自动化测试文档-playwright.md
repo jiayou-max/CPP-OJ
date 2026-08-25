@@ -531,7 +531,202 @@ playwright-cli --raw eval "JSON.stringify({url: location.pathname, title: docume
 
 ---
 
-## 6. 后续模块（M5~M7）执行提示
+## 6. M5 管理后台（4.5，已实测 10/10 通过）
+
+> **前置**：管理用例统一以 `admin` / `admin123` 登录（`oj_init_admin` 初始化）。测试创建的题目
+> 标题统一 `webadmin_*_<时间戳>` 前缀，删除类用例自建自删，本手册结束后已把残留测试题清空。
+> **confirm 弹窗**：删除按钮点击后弹出原生 `confirm`，`playwright-cli dialog-accept` /
+> `dialog-dismiss` **必须在弹窗出现后**再调用（先 `click` 触发弹窗，再处理弹窗）。
+> **eval 引号**：`eval` 的 JS 内避免内嵌双引号（会被 CLI 参数解析破坏），一律用单引号
+> 或 `filter(t=>t.name==='...')` 写法。
+
+### 6.1 W-ADMIN-01 游客访问管理后台重定向登录 ✅
+
+```powershell
+playwright-cli goto http://127.0.0.1:8080/admin/problems; Start-Sleep -Seconds 1
+# 输出：URL → http://127.0.0.1:8080/login，标题 登录 - CPP OJ（RequireAdmin 未登录先回登录页）
+```
+
+### 6.2 W-ADMIN-02 普通用户访问管理后台 403 ✅
+
+```powershell
+# 注册普通用户并自动登录（webuser_20260825131249004）
+playwright-cli goto http://127.0.0.1:8080/register; Start-Sleep -Seconds 1
+playwright-cli fill "#username" "webuser_<时间戳>"; Start-Sleep -Seconds 1
+playwright-cli fill "#password" "secret123"; Start-Sleep -Seconds 1
+playwright-cli fill "#password2" "secret123"; Start-Sleep -Seconds 1
+playwright-cli click "form.auth-form button[type=submit]"; Start-Sleep -Seconds 1
+
+playwright-cli goto http://127.0.0.1:8080/admin/problems; Start-Sleep -Seconds 1
+playwright-cli --raw eval "JSON.stringify({code: document.querySelector('h1.error-code')?.textContent.trim(), h2: document.querySelector('h2')?.textContent.trim(), msg: [...document.querySelectorAll('p')].map(p=>p.textContent.trim())})"
+# 实测：{"code":"403","h2":"访问被拒绝","msg":["需要管理员权限。"]}
+playwright-cli goto http://127.0.0.1:8080/admin/problems/new; Start-Sleep -Seconds 1
+# 实测：同样 403 / 访问被拒绝（A5）
+```
+
+### 6.3 W-ADMIN-03 普通用户无管理入口 ✅
+
+```powershell
+playwright-cli --raw eval "JSON.stringify({nav: document.querySelector('nav')?.textContent.trim().replace(/\s+/g,' '), adminLink: [...document.querySelectorAll('nav a')].some(a=>a.getAttribute('href')==='/admin/problems'), user: !!document.querySelector('.navbar-user')})"
+# 实测：{"nav":"题库 首页 webuser_20260825131249004登出","adminLink":false,"user":true}（FR-4.4）
+```
+
+### 6.4 W-ADMIN-04 admin 进入管理后台列表 ✅
+
+```powershell
+playwright-cli click "form.navbar-logout button"; Start-Sleep -Seconds 1
+playwright-cli goto http://127.0.0.1:8080/login; Start-Sleep -Seconds 1
+playwright-cli fill "#username" "admin"; Start-Sleep -Seconds 1
+playwright-cli fill "#password" "admin123"; Start-Sleep -Seconds 1
+playwright-cli click "form.auth-form button[type=submit]"; Start-Sleep -Seconds 1
+playwright-cli goto http://127.0.0.1:8080/admin/problems; Start-Sleep -Seconds 1
+playwright-cli --raw eval "JSON.stringify({title: document.title, h1: document.querySelector('h1')?.textContent.trim(), newBtn: !!document.querySelector('a[href=\u0027/admin/problems/new\u0027]'), rows: document.querySelectorAll('table.problem-table tbody tr').length})"
+# 实测：{"title":"题目管理 - CPP OJ","h1":"题目管理","newBtn":true,"rows":2}
+# 导航栏出现「管理」入口（a[href='/admin/problems']），FR-1.4
+```
+
+### 6.5 W-ADMIN-05 新增题目（含多组用例） ✅
+
+新增表单默认 2 组用例（`.tc-group`）。**每组 input/expected 都必须填写非空**，留空组会导致
+服务端校验失败（见 6.6 的 `ValidTestcases` 每组校验规则）。
+
+```powershell
+playwright-cli goto http://127.0.0.1:8080/admin/problems/new; Start-Sleep -Seconds 1
+playwright-cli fill "#title" "webadmin_c_<时间戳>"; Start-Sleep -Seconds 1
+playwright-cli select "#difficulty" "medium"; Start-Sleep -Seconds 1
+playwright-cli fill "#description" "## 自动化测试题"; Start-Sleep -Seconds 1
+playwright-cli fill "#tc-list .tc-group:nth-child(1) textarea[name='input[]']" "1 2"; Start-Sleep -Seconds 1
+playwright-cli fill "#tc-list .tc-group:nth-child(1) textarea[name='expected[]']" "3"; Start-Sleep -Seconds 1
+playwright-cli fill "#tc-list .tc-group:nth-child(2) textarea[name='input[]']" "3 4"; Start-Sleep -Seconds 1
+playwright-cli fill "#tc-list .tc-group:nth-child(2) textarea[name='expected[]']" "7"; Start-Sleep -Seconds 1
+playwright-cli click "form.admin-form button[type=submit]"; Start-Sleep -Seconds 1
+# 输出：URL → /admin/problems，列表含新题（id=175，徽章 badge badge-medium）
+```
+校验（管理列表 / 题库 / 详情 / DB）：
+
+```powershell
+playwright-cli --raw eval "JSON.stringify([...document.querySelectorAll('table.problem-table tbody tr')].map(r=>({id: r.querySelector('.col-id')?.textContent.trim(), title: r.querySelector('.problem-title')?.textContent.trim(), badge: r.querySelector('.col-diff .badge')?.className})).filter(x=>x.title?.startsWith('webadmin_c_'))"
+# 实测：[{"id":"175","title":"webadmin_c_20260825131707806","badge":"badge badge-medium"}]
+playwright-cli goto http://127.0.0.1:8080/problems; Start-Sleep -Seconds 1
+# 实测：「共 3 题」，含 /problems/175 链接；详情页描述渲染正常
+wsl bash -lc "mysql -uroot -h127.0.0.1 -P3307 --table -e 'SELECT id,title,difficulty FROM cpp_oj.problems WHERE id=175; SELECT problem_id,input,expected FROM cpp_oj.testcases WHERE problem_id=175;'"
+# 实测：problems 1 行 + testcases 2 组（1 2/3、3 4/7）→ 事务落库（A4）
+```
+
+### 6.6 W-ADMIN-06 新增题目校验失败不落库 ✅
+
+两种场景实测：
+
+```powershell
+# ① 空标题/空描述直接提交 → 被浏览器原生 required 校验拦截（不发请求、无 .form-error、无落库）
+playwright-cli goto http://127.0.0.1:8080/admin/problems/new; Start-Sleep -Seconds 1
+playwright-cli click "form.admin-form button[type=submit]"; Start-Sleep -Seconds 1
+# 实测：URL 仍为 /admin/problems/new，无 .form-error；DB MAX(id) 不变
+
+# ② 填标题/描述、用例组全空 → 服务端 kInvalidInput 重渲染新增表单页并带错误
+playwright-cli fill "#title" "webadmin_c_<时间戳>"; Start-Sleep -Seconds 1
+playwright-cli fill "#description" "## 自动化测试题"; Start-Sleep -Seconds 1
+playwright-cli click "form.admin-form button[type=submit]"; Start-Sleep -Seconds 1
+playwright-cli --raw eval "JSON.stringify({h1: document.querySelector('h1')?.textContent.trim(), err: document.querySelector('.form-error')?.textContent.trim()})"
+# 实测：{"h1":"新增题目","err":"请填写标题、Markdown 描述，并至少提供一组「输入/期望输出」均非空的测试用例。"}
+#       页面仍是表单页（无 table.problem-table），URL 为 POST 地址 /admin/problems；DB 无新增
+```
+> 注意：用例校验为**每组**均需 input/expected 非空（`problem_service.cpp` `ValidTestcases`）。
+> 新增表单默认 2 组，若只填 1 组、留空第 2 组，同样触发该校验（应填满或点「移除」）。
+
+### 6.7 W-ADMIN-07 编辑题目预填与保存 ✅
+
+```powershell
+# 先创建 webadmin_e_<时间戳>（默认难度 easy，2 组用例），实测 id=176
+playwright-cli goto http://127.0.0.1:8080/admin/problems/176/edit; Start-Sleep -Seconds 1
+playwright-cli --raw eval "JSON.stringify({h1: document.querySelector('h1')?.textContent.trim(), title: document.querySelector('#title').value, diff: document.querySelector('#difficulty').value, desc: document.querySelector('#description').value, ins: [...document.querySelectorAll('textarea')].filter(t=>t.name==='input[]').map(t=>t.value), exps: [...document.querySelectorAll('textarea')].filter(t=>t.name==='expected[]').map(t=>t.value), formAction: document.querySelector('form.admin-form')?.getAttribute('action'), submitLabel: document.querySelector('form.admin-form button[type=submit]')?.textContent.trim()})"
+# 实测：h1=编辑题目，title/desc 回填，diff=easy，2 组用例内容齐全，
+#       formAction=/admin/problems/176/edit，submitLabel=保存修改
+```
+
+修改（标题加 `_edited`、难度改 `困难`、移除第 2 组用例并改为 1 组 `9 9/18`）并保存：
+
+```powershell
+playwright-cli fill "#title" "webadmin_e_20260825132139127_edited"; Start-Sleep -Seconds 1
+playwright-cli select "#difficulty" "hard"; Start-Sleep -Seconds 1
+playwright-cli click "#tc-list .tc-group:nth-child(2) .tc-remove"; Start-Sleep -Seconds 1
+playwright-cli fill "#tc-list .tc-group:nth-child(1) textarea[name='input[]']" "9 9"; Start-Sleep -Seconds 1
+playwright-cli fill "#tc-list .tc-group:nth-child(1) textarea[name='expected[]']" "18"; Start-Sleep -Seconds 1
+playwright-cli click "form.admin-form button[type=submit]"; Start-Sleep -Seconds 1
+# 实测：URL → /admin/problems；列表行 title=webadmin_e_..._edited，徽章 badge badge-hard
+```
+
+复验（重进编辑页 + DB 用例整体替换）：
+
+```powershell
+playwright-cli goto http://127.0.0.1:8080/admin/problems/176/edit; Start-Sleep -Seconds 1
+# 实测：title=..._edited, diff=hard, 仅 1 组用例（9 9 / 18）
+wsl bash -lc "mysql -uroot -h127.0.0.1 -P3307 --table -e 'SELECT problem_id,input,expected FROM cpp_oj.testcases WHERE problem_id=176;'"
+# 实测：仅 1 行（9 9/18）→ 旧用例已删、新用例已插（事务替换，FR-4.2）
+```
+
+### 6.8 W-ADMIN-08 删除题目二次确认（取消） ✅
+
+```powershell
+# 先创建 webadmin_del_<时间戳>（2 组用例填满），实测 id=177
+playwright-cli click "form.admin-delete[action*='/177/delete'] button"; Start-Sleep -Seconds 1
+# 输出出现 Modal state：confirm「确定要删除该题目吗？此操作不可恢复，相关测试用例将级联删除。」
+playwright-cli dialog-dismiss; Start-Sleep -Seconds 1
+# 校验：未发生 POST 删除
+playwright-cli --raw eval "JSON.stringify({still: [...document.querySelectorAll('table.problem-table tbody tr')].some(r=>r.querySelector('.col-id')?.textContent.trim()==='177')})"
+# 实测：still=true；/problems/177 仍 200（详情页正常，FR-4.3 前端二次确认）
+```
+
+### 6.9 W-ADMIN-09 删除题目物理删除（确认） ✅
+
+```powershell
+# 先创建 webadmin_del2_<时间戳>，实测 id=178
+playwright-cli click "form.admin-delete[action*='/178/delete'] button"; Start-Sleep -Seconds 1
+playwright-cli dialog-accept; Start-Sleep -Seconds 1
+# 输出：URL → /admin/problems（POST 后 302 回列表）
+playwright-cli --raw eval "JSON.stringify({gone: ![...document.querySelectorAll('table.problem-table tbody tr')].some(r=>r.querySelector('.col-id')?.textContent.trim()==='178')})"
+# 实测：gone=true（列表不再含 178）
+playwright-cli goto http://127.0.0.1:8080/problems/178; Start-Sleep -Seconds 1
+# 实测：标题 404 - CPP OJ，h1.error-code=404，h2=题目不存在
+wsl bash -lc "mysql -uroot -h127.0.0.1 -P3307 --table -e 'SELECT COUNT(*) AS p178 FROM cpp_oj.problems WHERE id=178; SELECT COUNT(*) AS tc178 FROM cpp_oj.testcases WHERE problem_id=178;'"
+# 实测：p178=0, tc178=0 → 题目与用例物理删除（CASCADE，FR-4.3）
+```
+
+### 6.10 W-ADMIN-10 新增表单用例动态增删 ✅
+
+```powershell
+playwright-cli goto http://127.0.0.1:8080/admin/problems/new; Start-Sleep -Seconds 1
+playwright-cli --raw eval "JSON.stringify({groups: document.querySelectorAll('.tc-group').length})"
+# 实测：groups=2
+playwright-cli click "#add-tc"; Start-Sleep -Seconds 1
+# 实测：groups=3
+playwright-cli click "#tc-list .tc-group:nth-child(1) .tc-remove"; Start-Sleep -Seconds 1
+# 实测：groups=2
+playwright-cli click "#tc-list .tc-group:nth-child(1) .tc-remove"; Start-Sleep -Seconds 1
+playwright-cli --raw eval "JSON.stringify({groups: document.querySelectorAll('.tc-group').length, removeHidden: [...document.querySelectorAll('.tc-remove')].map(b=>b.hidden)})"
+# 实测：groups=1, removeHidden=[true] → 仅剩 1 组时「移除」隐藏（syncRemoveButtons）
+```
+
+### 6.11 实测结果汇总（2026-08-25）
+
+| 用例 | 结论 | 备注 |
+|------|------|------|
+| W-ADMIN-01 | ✅ 通过 | 游客访问 `/admin/problems` → `/login` |
+| W-ADMIN-02 | ✅ 通过 | `/admin/problems` 与 `/new` 均 403「访问被拒绝/需要管理员权限。」 |
+| W-ADMIN-03 | ✅ 通过 | 普通用户导航无「管理」入口（adminLink=false） |
+| W-ADMIN-04 | ✅ 通过 | admin 列表页：题目管理/新增按钮/导航「管理」 |
+| W-ADMIN-05 | ✅ 通过 | 新增（2 组用例）→ 列表/题库/详情可见，DB 事务落库 |
+| W-ADMIN-06 | ✅ 通过 | 空提交被原生校验拦截；全空用例触发服务端 `.form-error`，均不落库 |
+| W-ADMIN-07 | ✅ 通过 | 预填正确；保存后列表更新（困难徽章），用例整体替换（DB 佐证） |
+| W-ADMIN-08 | ✅ 通过 | confirm 取消后无 POST，题目保留，详情页仍 200 |
+| W-ADMIN-09 | ✅ 通过 | confirm 确认后物理删除，列表移除、详情 404、DB 级联删除 |
+| W-ADMIN-10 | ✅ 通过 | `.tc-group` 2→3→2→1，仅剩 1 组时「移除」隐藏 |
+
+> 本手册执行后已将创建的测试题目（`webadmin_c/e/del/del2_*`）全部删除，题库恢复为题 5/6。
+
+---
+
+## 7. 后续模块（M6~M7）执行提示
 
 - 沿用 §1 的启动方式与定位/取值约定；
 - 命令映射见 [web自动化测试文档.md](./web自动化测试文档.md) §3.2 选择器速查表；
