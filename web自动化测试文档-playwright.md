@@ -844,10 +844,73 @@ playwright-cli goto http://127.0.0.1:8080/problems; Start-Sleep -Seconds 1
 
 ---
 
-## 8. 后续模块（M7 并发安全）执行提示
+## 8. M7 并发安全（4.7，已实测 1/1 通过）
+
+> **隔离方案**：本环境 `playwright-cli run-code` 内 `browser.newContext()` 派生的第二个
+> 页面会停在 `about:blank`、注册无法跳转，故改用 **两个独立命名会话**（`-s=sa` / `-s=sb`）
+> 各自持有独立浏览器上下文与会话 Cookie，实现「两个隔离用户并发提交」。判题为全局信号量
+> 限流（并发 ≤ 2，FR-3.5），两请求可同时执行、有界返回。
+
+### 8.1 W-CONC-01 双并发提交结果互不污染 ✅
+
+```powershell
+# ① 开两个独立会话（有头模式，两个窗口便于观察）
+playwright-cli -s=sa open --headed --browser=chrome http://127.0.0.1:8080/
+playwright-cli -s=sb open --headed --browser=chrome http://127.0.0.1:8080/
+
+# ② sa 注册用户 A（con_a_<时间戳>）、sb 注册用户 B（con_b_<时间戳>），各自自动登录
+playwright-cli -s=sa goto http://127.0.0.1:8080/register; Start-Sleep -Seconds 1
+playwright-cli -s=sa fill "#username" "con_a_20260825171927586"; Start-Sleep -Seconds 1
+playwright-cli -s=sa fill "#password" "secret123"; Start-Sleep -Seconds 1
+playwright-cli -s=sa fill "#password2" "secret123"; Start-Sleep -Seconds 1
+playwright-cli -s=sa click "form.auth-form button[type=submit]"; Start-Sleep -Seconds 1
+# 同上，sb 注册 con_b_20260825171958569
+# 实测两会话 .navbar-user 分别为 con_a_... / con_b_...
+
+# ③ 打开题 5 并注入代码：sa → AC 样本（set_ac.js），sb → CE 样本（set_ce.js）
+playwright-cli -s=sa goto http://127.0.0.1:8080/problems/5; Start-Sleep -Seconds 1
+playwright-cli -s=sa run-code --filename=playwright-js/set_ac.js; Start-Sleep -Seconds 1
+playwright-cli -s=sb goto http://127.0.0.1:8080/problems/5; Start-Sleep -Seconds 1
+playwright-cli -s=sb run-code --filename=playwright-js/set_ce.js; Start-Sleep -Seconds 1
+
+# ④ 同时提交（同一消息内两个 bash 并行调用，差 < 1s）
+#    调用1：playwright-cli -s=sa click "#submit-form button[type=submit]"
+#    调用2：playwright-cli -s=sb click "#submit-form button[type=submit]"
+```
+
+校验（两个会话各自的判题结果）：
+
+```powershell
+playwright-cli -s=sa --raw eval "JSON.stringify({url: location.pathname, status: document.querySelector('.result-status')?.textContent.trim(), chips: [...document.querySelectorAll('.result-stats .stat-chip')].map(e=>e.textContent.trim()), cases: [...document.querySelectorAll('table.case-table tbody tr')].map(r=>r.textContent.replace(/\s+/g,' ').trim())})"
+# 实测：{"url":"/problems/5/submit","status":"通过 (AC)","chips":["47 ms","6508 KB"],
+#        "cases":["#1通过42 ms6508 KB","#2通过5 ms6508 KB"]}   （耗时 7.97s，有界）
+playwright-cli -s=sb --raw eval "JSON.stringify({status: document.querySelector('.result-status')?.textContent.trim(), hasLog: !!document.querySelector('pre.compile-log')})"
+# 实测：{"status":"编译错误 (CE)","hasLog":true}   （耗时 4.96s，有界）
+#       compile-log 头：main.cpp:1:1: error: expected unqualified-id before 'this'
+```
+
+DB 落库校验（无交叉污染，A15）：
+
+```powershell
+wsl bash -lc "mysql -uroot -h127.0.0.1 -P3307 --table -e 'SELECT s.id,u.username,s.problem_id,s.status,s.time_ms,s.memory_kb,LEFT(s.code,45) AS code_head FROM cpp_oj.submissions s JOIN cpp_oj.users u ON u.id=s.user_id ORDER BY s.id DESC LIMIT 2;'"
+# 实测：id=126 con_a_20260825171927586  status=ac  code=#include <iostream>#include <vector>...（AC 样本）
+#       id=125 con_b_20260825171958569  status=ce  code=this is not valid c++（CE 样本）
+# → 两提交各自落库，代码/结果一一对应，无交叉污染（随机临时目录隔离）
+```
+
+### 8.2 实测结果汇总（2026-08-25）
+
+| 用例 | 结论 | 备注 |
+|------|------|------|
+| W-CONC-01 | ✅ 通过 | 双会话并发提交：A=AC(7.97s)、B=CE(4.96s) 均有界返回；DB 落库代码与结果一一对应，无交叉污染 |
+
+---
+
+## 9. 后续模块执行提示
 
 - 沿用 §1 的启动方式与定位/取值约定；
 - 命令映射见 [web自动化测试文档.md](./web自动化测试文档.md) §3.2 选择器速查表；
 - M5 管理后台 confirm 弹窗：`playwright-cli dialog-accept` / `dialog-dismiss`；
 - M6 的 `W-ERR-04`（停库）破坏性大，建议最后单独执行并确认 MySQL 已恢复；
-- 判题相关命令（run-code 脚本注入、同步判题慢用例）见 §5。
+- 判题相关命令（run-code 脚本注入、同步判题慢用例）见 §5；
+- 并发/多身份场景：用独立命名会话（`-s=`）隔离上下文与 Cookie（见 §8）。
