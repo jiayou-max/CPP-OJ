@@ -94,7 +94,88 @@ playwright-cli --raw eval "Promise.all(['/static/css/style.css','/static/js/ace/
 
 ---
 
-## 3. 后续模块（M2~M7）执行提示
+## 3. M2 题库浏览与做题页（4.2，已实测 5/5 通过）
+
+### 3.1 W-PROB-01 题库列表展示全部题目 ✅
+
+```powershell
+playwright-cli goto http://127.0.0.1:8080/problems; Start-Sleep -Seconds 1
+# 输出：Page Title: 题库 - CPP OJ
+playwright-cli snapshot; Start-Sleep -Seconds 1
+```
+校验点（snapshot 中逐一确认）：
+- 头部「共 N 题」数字 > 0（实测「共 2 题」）；
+- 每题一行：编号、标题链接（指向 `/problems/{id}`）、难度（简单/中等/困难）。
+
+DOM 结构校验（与主文档 §3.2 选择器对齐）：
+
+```powershell
+playwright-cli --raw eval "JSON.stringify({table: document.querySelectorAll('table.problem-table tbody tr').length, titleLinks: [...document.querySelectorAll('a.problem-title')].map(a=>a.getAttribute('href')), badges: [...document.querySelectorAll('a.problem-title')].map(a=>a.closest('tr').querySelector('.badge')?.className), header: document.querySelector('main')?.textContent?.match(/共 \d+ 题/)?.[0]})"
+# 实测：{"table":2,"titleLinks":["/problems/5","/problems/6"],"badges":["badge badge-easy","badge badge-medium"],"header":"共 2 题"}
+```
+
+### 3.2 W-PROB-02 题目详情页结构完整 ✅
+
+从题库点击标题进入题 5 详情页（也可直接 `goto /problems/5`）：
+
+```powershell
+playwright-cli click "a.problem-title[href='/problems/5']"; Start-Sleep -Seconds 1
+# 输出：Page Title: 两数之和 - CPP OJ
+playwright-cli snapshot; Start-Sleep -Seconds 1
+```
+校验点（snapshot）：
+- 题头含 `#5`、标题「两数之和」、难度 `简单`；
+- 描述区 `.markdown-body` 非空（Markdown 已转 HTML：标题/示例/code/strong）；
+- 右侧 ace 编辑器（`main.cpp` · `C++17 · g++ -O2`）+ 「运行提交」按钮。
+
+DOM 结构校验：
+
+```powershell
+playwright-cli --raw eval "JSON.stringify({editor: !!document.querySelector('#code-editor'), ace_initialized: !!document.querySelector('.ace_editor'), textarea_code: (()=>{const t=document.querySelector('textarea#code[name=code]'); return {exists:!!t, hasValue:(t? t.value.length>0 : false)};})(), form_action: document.querySelector('#submit-form')?.getAttribute('action'), btn: document.querySelector('#submit-form button')?.textContent.trim(), markdown: (()=>{const m=document.querySelector('.markdown-body'); return {exists:!!m, nonEmpty:(m? m.textContent.trim().length>0:false)};})()})"
+# 实测：editor/ace_initialized=true，textarea_code.hasValue=true，
+#       form_action="/problems/5/submit"，btn="运行提交"，markdown.nonEmpty=true
+```
+
+### 3.3 W-PROB-03 详情页 Markdown 渲染 ✅
+
+```powershell
+playwright-cli --raw eval "JSON.stringify({h1h2: document.querySelectorAll('.markdown-body h1, .markdown-body h2').length, h3: document.querySelectorAll('.markdown-body h3').length, p: document.querySelectorAll('.markdown-body p').length, strong: document.querySelectorAll('.markdown-body strong').length, code: document.querySelectorAll('.markdown-body code').length, rawHash: (document.querySelector('.markdown-body')?.textContent||'').includes('#')})"
+# 实测：h1h2=1, h3=1, p=3, strong=1, code=4, rawHash=false
+#       （标题/示例/段落/强调/行内 code 均渲染为 HTML，无裸露 # 原文字符）
+```
+> 题 5 无代码块故 `pre=0`；若需校验 `<pre>`，可访问题 6 或其他含代码块的题。
+
+### 3.4 W-PROB-04 不存在题目返回 404 ✅
+
+```powershell
+playwright-cli goto http://127.0.0.1:8080/problems/999; Start-Sleep -Seconds 1
+# 输出：Page Title: 404 - CPP OJ，HTTP status: 404 Not Found
+playwright-cli --raw eval "JSON.stringify({code: document.querySelector('h1.error-code')?.textContent.trim(), h2: document.querySelector('h2')?.textContent.trim()})"
+# 实测：{"code":"404","h2":"题目不存在"}
+```
+
+### 3.5 W-PROB-05 非法 id 返回 404 ✅
+
+```powershell
+playwright-cli goto http://127.0.0.1:8080/problems/abc; Start-Sleep -Seconds 1
+# 输出：Page Title: 404 - CPP OJ，HTTP status: 404 Not Found
+playwright-cli --raw eval "JSON.stringify({code: document.querySelector('h1.error-code')?.textContent.trim(), h2: document.querySelector('h2')?.textContent.trim()})"
+# 实测：{"code":"404","h2":"页面不存在"}
+```
+
+### 3.6 实测结果汇总（2026-08-25）
+
+| 用例 | 结论 | 备注 |
+|------|------|------|
+| W-PROB-01 | ✅ 通过 | 共 2 题；链接/徽章选择器与文档一致 |
+| W-PROB-02 | ✅ 通过 | 编辑器/隐藏 textarea 预填/`action=/problems/5/submit`/运行提交按钮 |
+| W-PROB-03 | ✅ 通过 | h2/h3/p/strong/code 渲染为 HTML，无裸露 `#` |
+| W-PROB-04 | ✅ 通过 | 404 页，`h1.error-code=404`，h2「题目不存在」 |
+| W-PROB-05 | ✅ 通过 | 404 页，`h1.error-code=404`，h2「页面不存在」 |
+
+---
+
+## 4. 后续模块（M3~M7）执行提示
 
 - 沿用 §1 的启动方式与定位/取值约定；
 - 命令映射见 [web自动化测试文档.md](./web自动化测试文档.md) §3.2 选择器速查表；
