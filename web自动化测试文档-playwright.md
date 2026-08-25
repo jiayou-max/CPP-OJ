@@ -175,8 +175,158 @@ playwright-cli --raw eval "JSON.stringify({code: document.querySelector('h1.erro
 
 ---
 
-## 4. 后续模块（M3~M7）执行提示
+## 4. M3 用户系统（4.3，已实测 9/9 通过）
+
+> 注册/登录表单字段选择器（与主文档 §3.2 一致）：`form.auth-form`、`#username`、
+> `#password`、`#password2`、`form.auth-form button[type=submit]`。
+> 用户名为示例值，实际执行时用唯一后缀（`web_<时间戳>`）避免重名冲突。
+
+### 4.1 W-AUTH-01 注册成功并自动登录 ✅
+
+```powershell
+playwright-cli goto http://127.0.0.1:8080/register; Start-Sleep -Seconds 1
+playwright-cli fill "#username" "web_<时间戳>"; Start-Sleep -Seconds 1
+playwright-cli fill "#password" "secret123"; Start-Sleep -Seconds 1
+playwright-cli fill "#password2" "secret123"; Start-Sleep -Seconds 1
+playwright-cli click "form.auth-form button[type=submit]"; Start-Sleep -Seconds 1
+# 输出：URL → /problems（302 自动登录），标题 题库 - CPP OJ
+```
+校验：
+
+```powershell
+playwright-cli --raw eval "JSON.stringify({user: document.querySelector('.navbar-user')?.textContent.trim(), logoutBtn: !!document.querySelector('form.navbar-logout button')})"
+# 实测：{"user":"web_20260825122126079","logoutBtn":true}
+```
+
+### 4.2 W-AUTH-02 重复用户名被拒绝 ✅
+
+```powershell
+# 先登出，再用 W-AUTH-01 的用户名注册
+playwright-cli click "form.navbar-logout button"; Start-Sleep -Seconds 1
+playwright-cli goto http://127.0.0.1:8080/register; Start-Sleep -Seconds 1
+playwright-cli fill "#username" "web_<同上>"; Start-Sleep -Seconds 1
+playwright-cli fill "#password" "secret123"; Start-Sleep -Seconds 1
+playwright-cli fill "#password2" "secret123"; Start-Sleep -Seconds 1
+playwright-cli click "form.auth-form button[type=submit]"; Start-Sleep -Seconds 1
+# 输出：URL 仍为 /register（200，不跳转）
+```
+校验：
+
+```powershell
+playwright-cli --raw eval "JSON.stringify({error: document.querySelector('.form-error')?.textContent.trim()})"
+# 实测：{"error":"用户名已存在，请换一个。"}
+```
+
+### 4.3 W-AUTH-03 保留用户名 admin 被拒绝 ✅
+
+```powershell
+playwright-cli fill "#username" "admin"; Start-Sleep -Seconds 1
+playwright-cli fill "#password" "admin123"; Start-Sleep -Seconds 1
+playwright-cli fill "#password2" "admin123"; Start-Sleep -Seconds 1
+playwright-cli click "form.auth-form button[type=submit]"; Start-Sleep -Seconds 1
+# 实测 .form-error：用户名已存在，请换一个。
+```
+
+### 4.4 W-AUTH-04 两次密码不一致被拒绝 ✅
+
+```powershell
+playwright-cli fill "#username" "mismatch_<时间戳>"; Start-Sleep -Seconds 1
+playwright-cli fill "#password" "secret123"; Start-Sleep -Seconds 1
+playwright-cli fill "#password2" "secret456"; Start-Sleep -Seconds 1
+playwright-cli click "form.auth-form button[type=submit]"; Start-Sleep -Seconds 1
+# 实测 .form-error：两次输入的密码不一致。
+```
+
+### 4.5 W-AUTH-05 非法用户名/短密码被拒绝 ✅
+
+```powershell
+playwright-cli fill "#username" "b@d!name"; Start-Sleep -Seconds 1
+playwright-cli fill "#password" "secret123"; Start-Sleep -Seconds 1
+playwright-cli fill "#password2" "secret123"; Start-Sleep -Seconds 1
+playwright-cli click "form.auth-form button[type=submit]"; Start-Sleep -Seconds 1
+# 实测 .form-error：用户名仅允许字母/数字/下划线（1~64 位），密码长度 6~64。
+# 另测：密码 "123"（<6 位）同样被拒，报同一文案。
+```
+
+### 4.6 W-AUTH-06 登录成功 ✅
+
+```powershell
+playwright-cli goto http://127.0.0.1:8080/login; Start-Sleep -Seconds 1
+playwright-cli fill "#username" "web_<已注册用户>"; Start-Sleep -Seconds 1
+playwright-cli fill "#password" "secret123"; Start-Sleep -Seconds 1
+playwright-cli click "form.auth-form button[type=submit]"; Start-Sleep -Seconds 1
+# 输出：URL → /problems；导航 .navbar-user 显示用户名 + 登出按钮
+```
+
+### 4.7 W-AUTH-07 登录失败统一文案（防枚举）✅
+
+```powershell
+# ① 已存在用户 + 错误密码
+playwright-cli click "form.navbar-logout button"; Start-Sleep -Seconds 1
+playwright-cli goto http://127.0.0.1:8080/login; Start-Sleep -Seconds 1
+playwright-cli fill "#username" "web_<已注册用户>"; Start-Sleep -Seconds 1
+playwright-cli fill "#password" "wrongpass"; Start-Sleep -Seconds 1
+playwright-cli click "form.auth-form button[type=submit]"; Start-Sleep -Seconds 1
+# ② 不存在用户 + 任意密码
+playwright-cli fill "#username" "nouser_<时间戳>"; Start-Sleep -Seconds 1
+playwright-cli fill "#password" "whatever1"; Start-Sleep -Seconds 1
+playwright-cli click "form.auth-form button[type=submit]"; Start-Sleep -Seconds 1
+```
+两种场景 `.form-error` 均一致：
+
+```powershell
+# 实测：{"error":"用户名或密码错误。"}（不区分账号不存在/密码错误，防枚举）
+```
+
+### 4.8 W-AUTH-08 已登录访问登录/注册页重定向 ✅
+
+```powershell
+playwright-cli fill "#username" "web_<已注册用户>"; Start-Sleep -Seconds 1
+playwright-cli fill "#password" "secret123"; Start-Sleep -Seconds 1
+playwright-cli click "form.auth-form button[type=submit]"; Start-Sleep -Seconds 1
+playwright-cli goto http://127.0.0.1:8080/login; Start-Sleep -Seconds 1
+# 输出：URL 仍为 /problems（302 重定向，不显示登录表单）
+playwright-cli goto http://127.0.0.1:8080/register; Start-Sleep -Seconds 1
+# 输出：URL 仍为 /problems（302 重定向）
+```
+
+### 4.9 W-AUTH-09 登出成功并清会话 ✅
+
+```powershell
+playwright-cli click "form.navbar-logout button"; Start-Sleep -Seconds 1
+# 输出：URL → /problems
+```
+校验导航恢复未登录态（用户名元素消失）：
+
+```powershell
+playwright-cli --raw eval "JSON.stringify({nav: document.querySelector('nav')?.textContent.trim().replace(/\\s+/g,' '), user: !!document.querySelector('.navbar-user')})"
+# 实测：{"nav":"题库 首页 登录 注册","user":false}
+```
+校验会话已失效（原 Cookie 销毁，受保护接口被重定向）：
+
+```powershell
+playwright-cli goto http://127.0.0.1:8080/admin/problems; Start-Sleep -Seconds 1
+# 输出：URL → /login（302 重定向）
+```
+
+### 4.10 实测结果汇总（2026-08-25）
+
+| 用例 | 结论 | 备注 |
+|------|------|------|
+| W-AUTH-01 | ✅ 通过 | 注册→302 `/problems`，自动登录，导航显示用户名+登出 |
+| W-AUTH-02 | ✅ 通过 | 200 注册页，`.form-error`「用户名已存在，请换一个。」 |
+| W-AUTH-03 | ✅ 通过 | admin 保留用户名被拒，同文案 |
+| W-AUTH-04 | ✅ 通过 | `.form-error`「两次输入的密码不一致。」 |
+| W-AUTH-05 | ✅ 通过 | 非法用户名/短密码均报「用户名仅允许字母/数字/下划线…」 |
+| W-AUTH-06 | ✅ 通过 | 登录→302 `/problems`，导航显示用户名 |
+| W-AUTH-07 | ✅ 通过 | 错密码/不存在用户两种场景文案一致（防枚举） |
+| W-AUTH-08 | ✅ 通过 | 已登录访问 `/login`、`/register` 均 302 → `/problems` |
+| W-AUTH-09 | ✅ 通过 | 登出后导航恢复登录/注册；`/admin/problems` 302 → `/login` |
+
+---
+
+## 5. 后续模块（M4~M7）执行提示
 
 - 沿用 §1 的启动方式与定位/取值约定；
 - 命令映射见 [web自动化测试文档.md](./web自动化测试文档.md) §3.2 选择器速查表；
-- 注册/登录/登出、ace 编辑器填码、判题提交等交互命令在本手册持续补充。
+- ace 编辑器填码、判题提交、管理后台 confirm 弹窗等交互命令在本手册持续补充。
